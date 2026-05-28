@@ -21,5 +21,32 @@ const SheetsService = {
             body: JSON.stringify(body)
         });
         return await resp.json();
+    },
+
+    async lerLinhas(token, sheetId, aba) {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(aba)}`;
+        const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+        const data = await resp.json();
+        return data.values || [];
+    },
+
+    async adicionarLinha(token, sheetId, aba, valores) {
+        const range = encodeURIComponent(aba);
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
+        await fetch(url, {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [valores] })
+        });
+    },
+
+    async atualizarLinha(token, sheetId, aba, linhaNum, valores) {
+        const range = encodeURIComponent(`${aba}!A${linhaNum}`);
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?valueInputOption=RAW`;
+        await fetch(url, {
+            method: 'PUT',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [valores] })
+        });
     }
 };

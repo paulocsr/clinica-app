@@ -24,6 +24,14 @@ const DriveService = {
         return await this.criarPasta(token, nome, parentId);
     },
 
+    async listarArquivosNaPasta(token, pastaId) {
+        const q = `'${pastaId}' in parents and trashed=false`;
+        const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)`;
+        const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+        const data = await resp.json();
+        return data.files || [];
+    },
+
     async moverArquivo(token, fileId, pastaDestinoId) {
         const metaResp = await fetch(
             `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`,

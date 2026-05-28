@@ -6,125 +6,531 @@
     <title>Clínica App</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: sans-serif; background: #f0f4f8; }
-
-        header {
-            background: #1a73e8;
-            color: white;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        :root {
+            --azul: #1a73e8;
+            --azul-escuro: #1558b0;
+            --cinza-claro: #f0f4f8;
+            --cinza-borda: #e0e0e0;
+            --texto: #333;
+            --texto-suave: #666;
+            --sidebar-w: 200px;
+            --header-h: 56px;
         }
-        header h1 { font-size: 1.3rem; }
-        .usuario-info { font-size: 0.9rem; display: flex; align-items: center; gap: 1rem; }
+        body { font-family: sans-serif; background: var(--cinza-claro); color: var(--texto); }
+
+        /* ── Header ── */
+        header {
+            position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+            background: var(--azul); color: white;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 1.5rem; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        header h1 { font-size: 1.2rem; }
+        .header-usuario { display: flex; align-items: center; gap: 1rem; font-size: 0.9rem; }
         .btn-sair {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.5);
-            color: white;
-            padding: 0.4rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
+            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+            color: white; padding: 0.3rem 0.9rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
         }
         .btn-sair:hover { background: rgba(255,255,255,0.3); }
 
-        main {
-            max-width: 800px;
-            margin: 2rem auto;
-            padding: 0 1rem;
+        /* ── Layout ── */
+        .app-body {
+            display: flex;
+            margin-top: var(--header-h);
+            min-height: calc(100vh - var(--header-h));
         }
-        .boas-vindas {
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            text-align: center;
+
+        /* ── Sidebar ── */
+        nav.sidebar {
+            width: var(--sidebar-w); background: white;
+            border-right: 1px solid var(--cinza-borda);
+            padding: 1.5rem 0; position: fixed;
+            top: var(--header-h); bottom: 0; overflow-y: auto;
         }
-        .boas-vindas h2 { color: #333; margin-bottom: 0.5rem; }
-        .boas-vindas p { color: #666; font-size: 0.95rem; margin-bottom: 1.5rem; }
-        .modulos {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 1rem;
-            margin-top: 2rem;
+        .nav-item {
+            display: block; padding: 0.75rem 1.5rem;
+            color: var(--texto-suave); text-decoration: none; font-size: 0.95rem;
+            cursor: pointer; border-left: 3px solid transparent;
         }
-        .modulo {
-            background: white;
-            border-radius: 10px;
-            padding: 1.5rem 1rem;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            color: #aaa;
-            font-size: 0.9rem;
-            border: 2px dashed #e0e0e0;
+        .nav-item:hover { background: var(--cinza-claro); color: var(--texto); }
+        .nav-item.ativo { color: var(--azul); border-left-color: var(--azul); font-weight: 600; background: #e8f0fe; }
+        .nav-item.desativado { color: #bbb; cursor: default; }
+        .nav-item.desativado:hover { background: none; }
+
+        /* ── Conteúdo ── */
+        main.conteudo {
+            margin-left: var(--sidebar-w);
+            flex: 1; padding: 2rem;
         }
-        .modulo-icone { font-size: 2rem; margin-bottom: 0.5rem; }
+
+        /* ── View Pacientes ── */
+        .view-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;
+        }
+        .view-header h2 { font-size: 1.4rem; }
+        .view-acoes { display: flex; gap: 0.75rem; align-items: center; }
+
+        input[type="search"], input[type="text"], input[type="email"],
+        input[type="date"], select, textarea {
+            border: 1px solid var(--cinza-borda); border-radius: 6px;
+            padding: 0.5rem 0.75rem; font-size: 0.9rem; font-family: inherit;
+        }
+        input[type="search"] { width: 280px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--azul); }
+
+        .btn {
+            padding: 0.5rem 1.25rem; border: none; border-radius: 6px;
+            font-size: 0.9rem; cursor: pointer; font-family: inherit;
+        }
+        .btn-primario { background: var(--azul); color: white; }
+        .btn-primario:hover { background: var(--azul-escuro); }
+        .btn-secundario { background: white; color: var(--texto); border: 1px solid var(--cinza-borda); }
+        .btn-secundario:hover { background: var(--cinza-claro); }
+        .btn-perigo { background: #d93025; color: white; }
+        .btn-perigo:hover { background: #b71c1c; }
+
+        /* ── Tabela ── */
+        .tabela-container {
+            background: white; border-radius: 10px;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.08); overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: #f8f9fa; }
+        th { text-align: left; padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--texto-suave); font-weight: 600; border-bottom: 1px solid var(--cinza-borda); }
+        td { padding: 0.75rem 1rem; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8f9fa; }
+        .btn-acao { background: none; border: none; cursor: pointer; color: var(--azul); font-size: 0.85rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
+        .btn-acao:hover { background: #e8f0fe; }
+        .vazio { padding: 3rem; text-align: center; color: var(--texto-suave); }
+
+        /* ── Paginação ── */
+        .paginacao {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.75rem 1rem; border-top: 1px solid var(--cinza-borda);
+            font-size: 0.85rem; color: var(--texto-suave);
+        }
+        .paginacao-btns { display: flex; gap: 0.5rem; }
+        .paginacao-btns button { padding: 0.3rem 0.75rem; border-radius: 4px; }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45); z-index: 200;
+            justify-content: center; align-items: flex-start; padding-top: 3rem;
+        }
+        .modal-overlay.aberto { display: flex; }
+        .modal-box {
+            background: white; border-radius: 12px; width: 100%; max-width: 560px;
+            max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--cinza-borda); position: sticky; top: 0; background: white;
+        }
+        .modal-header h3 { font-size: 1.1rem; }
+        .btn-fechar { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--texto-suave); line-height: 1; }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--cinza-borda); display: flex; justify-content: flex-end; gap: 0.75rem; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-grupo { display: flex; flex-direction: column; gap: 0.4rem; }
+        .form-grupo.full { grid-column: 1 / -1; }
+        label { font-size: 0.85rem; color: var(--texto-suave); font-weight: 500; }
+        .obrigatorio { color: #d93025; }
+        .erro-campo { color: #d93025; font-size: 0.8rem; margin-top: 0.2rem; }
+
+        /* ── Loading inline ── */
+        .spinner {
+            display: inline-block; width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.4); border-top-color: white;
+            border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Toast ── */
+        #toast {
+            position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+            background: #333; color: white; padding: 0.6rem 1.2rem; border-radius: 8px;
+            font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300;
+        }
+        #toast.visivel { opacity: 1; }
     </style>
 </head>
 <body>
 
+<!-- Header -->
 <header>
     <h1>Clínica App</h1>
-    <div class="usuario-info">
-        <span id="nome-usuario">Carregando...</span>
+    <div class="header-usuario">
+        <span id="nome-usuario"></span>
         <button class="btn-sair" id="btn-sair">Sair</button>
     </div>
 </header>
 
-<main>
-    <div class="boas-vindas">
-        <h2>Sistema configurado com sucesso!</h2>
-        <p>Sua pasta <strong>ClinicaApp</strong> foi criada no Google Drive com todas as planilhas prontas.<br>
-        Os módulos abaixo serão ativados nas próximas fases do desenvolvimento.</p>
-    </div>
+<div class="app-body">
 
-    <div class="modulos">
-        <div class="modulo">
-            <div class="modulo-icone">👥</div>
-            Pacientes<br><small>(em breve)</small>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="nav-item ativo" data-view="pacientes">👥 Pacientes</div>
+        <div class="nav-item desativado">📅 Agenda</div>
+        <div class="nav-item desativado">📝 Anotações</div>
+        <div class="nav-item desativado">💰 Financeiro</div>
+        <div class="nav-item desativado">🗓️ Escala</div>
+        <div class="nav-item desativado">⚙️ Configurações</div>
+    </nav>
+
+    <!-- Conteúdo principal -->
+    <main class="conteudo">
+
+        <!-- View: Pacientes -->
+        <section id="view-pacientes">
+            <div class="view-header">
+                <h2>Pacientes</h2>
+                <div class="view-acoes">
+                    <input type="search" id="busca-paciente" placeholder="Buscar por nome, CPF ou telefone...">
+                    <button class="btn btn-primario" id="btn-novo-paciente">+ Novo Paciente</button>
+                </div>
+            </div>
+
+            <div class="tabela-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CPF</th>
+                            <th>Telefone</th>
+                            <th>Convênio</th>
+                            <th>Médico</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-tabela">
+                        <tr><td colspan="6" class="vazio">Carregando pacientes...</td></tr>
+                    </tbody>
+                </table>
+                <div class="paginacao">
+                    <span id="info-paginacao"></span>
+                    <div class="paginacao-btns">
+                        <button class="btn btn-secundario" id="btn-anterior">← Anterior</button>
+                        <button class="btn btn-secundario" id="btn-proximo">Próximo →</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- Modal Paciente (cadastro e edição) -->
+<div class="modal-overlay" id="modal-paciente">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="modal-titulo">Novo Paciente</h3>
+            <button class="btn-fechar" id="btn-fechar-modal">×</button>
         </div>
-        <div class="modulo">
-            <div class="modulo-icone">📅</div>
-            Agenda<br><small>(em breve)</small>
+        <div class="modal-body">
+            <form id="form-paciente" novalidate>
+                <div class="form-grid">
+                    <div class="form-grupo full">
+                        <label>Nome completo <span class="obrigatorio">*</span></label>
+                        <input type="text" name="nome_completo" required>
+                        <span class="erro-campo" id="erro-nome"></span>
+                    </div>
+                    <div class="form-grupo">
+                        <label>Data de nascimento <span class="obrigatorio">*</span></label>
+                        <input type="date" name="data_nascimento" required>
+                        <span class="erro-campo" id="erro-nasc"></span>
+                    </div>
+                    <div class="form-grupo">
+                        <label>CPF <span class="obrigatorio">*</span></label>
+                        <input type="text" name="cpf" maxlength="14" placeholder="000.000.000-00">
+                        <span class="erro-campo" id="erro-cpf"></span>
+                    </div>
+                    <div class="form-grupo">
+                        <label>Telefone <span class="obrigatorio">*</span></label>
+                        <input type="text" name="telefone" maxlength="15" placeholder="(11) 99999-9999">
+                        <span class="erro-campo" id="erro-tel"></span>
+                    </div>
+                    <div class="form-grupo">
+                        <label>Email</label>
+                        <input type="email" name="email">
+                    </div>
+                    <div class="form-grupo">
+                        <label>Convênio</label>
+                        <input type="text" name="convenio">
+                    </div>
+                    <div class="form-grupo">
+                        <label>Número do convênio</label>
+                        <input type="text" name="numero_convenio">
+                    </div>
+                    <div class="form-grupo">
+                        <label>Médico responsável</label>
+                        <input type="text" name="medico_responsavel">
+                    </div>
+                    <div class="form-grupo full">
+                        <label>Observações gerais</label>
+                        <textarea name="observacoes_gerais" rows="3" style="resize:vertical"></textarea>
+                    </div>
+                </div>
+            </form>
         </div>
-        <div class="modulo">
-            <div class="modulo-icone">📝</div>
-            Anotações<br><small>(em breve)</small>
-        </div>
-        <div class="modulo">
-            <div class="modulo-icone">💰</div>
-            Financeiro<br><small>(em breve)</small>
-        </div>
-        <div class="modulo">
-            <div class="modulo-icone">🗓️</div>
-            Escala<br><small>(em breve)</small>
-        </div>
-        <div class="modulo">
-            <div class="modulo-icone">⚙️</div>
-            Configurações<br><small>(em breve)</small>
+        <div class="modal-footer">
+            <button class="btn btn-perigo" id="btn-desativar" style="display:none; margin-right:auto;">Desativar paciente</button>
+            <button class="btn btn-secundario" id="btn-cancelar">Cancelar</button>
+            <button class="btn btn-primario" id="btn-salvar">Salvar</button>
         </div>
     </div>
-</main>
+</div>
+
+<!-- Toast de feedback -->
+<div id="toast"></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="js/auth.js"></script>
+<script src="js/api/driveService.js"></script>
+<script src="js/api/sheetsService.js"></script>
+<script src="js/utils/validation.js"></script>
+<script src="js/modules/pacientes.js"></script>
 <script>
-    // Verificar se está autenticado
-    const token = AUTH.getToken();
-    if (!token) {
-        window.location.href = 'index.html';
-    }
+// ── Estado global ──────────────────────────────────────────────────────────
+const Estado = {
+    token: null,
+    sheetId: null,
+    paginaAtual: 1,
+    itensPorPagina: 20,
+    listaBuscada: [],
+    pacienteEditando: null,
+};
 
-    // Exibir nome do usuário
+// ── Inicialização ──────────────────────────────────────────────────────────
+async function inicializar() {
+    Estado.token = AUTH.getToken();
+    if (!Estado.token) { window.location.href = 'index.html'; return; }
+
     const usuario = AUTH.getUsuario();
-    if (usuario) {
-        document.getElementById('nome-usuario').textContent = usuario.name;
+    if (usuario) document.getElementById('nome-usuario').textContent = usuario.name;
+
+    await descobrirSheetId();
+    await carregarPacientes();
+}
+
+async function descobrirSheetId() {
+    // Tenta do cache primeiro
+    const sheets = JSON.parse(localStorage.getItem('clinicaApp_sheets') || 'null');
+    if (sheets && sheets.pacientes) { Estado.sheetId = sheets.pacientes; return; }
+
+    // Descobre percorrendo o Drive
+    const raizId = localStorage.getItem('clinicaApp_driveRaizId');
+    const filhos = await DriveService.listarArquivosNaPasta(Estado.token, raizId);
+    const pastaDados = filhos.find(f => f.name === 'dados');
+    if (!pastaDados) { alert('Pasta de dados não encontrada. Faça login novamente.'); return; }
+
+    const arquivos = await DriveService.listarArquivosNaPasta(Estado.token, pastaDados.id);
+    const mapa = {};
+    arquivos.forEach(f => { mapa[f.name] = f.id; });
+    localStorage.setItem('clinicaApp_sheets', JSON.stringify(mapa));
+    Estado.sheetId = mapa.pacientes;
+}
+
+// ── Tabela ─────────────────────────────────────────────────────────────────
+async function carregarPacientes(termoBusca = '') {
+    const corpo = document.getElementById('corpo-tabela');
+    corpo.innerHTML = '<tr><td colspan="6" class="vazio">Carregando...</td></tr>';
+
+    await Pacientes.listar(Estado.token, Estado.sheetId);
+    const lista = termoBusca ? Pacientes.buscar(termoBusca) : Pacientes._cache;
+    Estado.listaBuscada = lista || [];
+    Estado.paginaAtual = 1;
+    renderizarTabela();
+}
+
+function renderizarTabela() {
+    const { listaBuscada, paginaAtual, itensPorPagina } = Estado;
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    const pagina = listaBuscada.slice(inicio, inicio + itensPorPagina);
+    const total = listaBuscada.length;
+    const totalPaginas = Math.ceil(total / itensPorPagina);
+
+    const corpo = document.getElementById('corpo-tabela');
+    if (pagina.length === 0) {
+        corpo.innerHTML = '<tr><td colspan="6" class="vazio">Nenhum paciente encontrado.</td></tr>';
+    } else {
+        corpo.innerHTML = pagina.map(p => `
+            <tr>
+                <td>${p.nome_completo}</td>
+                <td>${p.cpf}</td>
+                <td>${p.telefone}</td>
+                <td>${p.convenio || '—'}</td>
+                <td>${p.medico_responsavel || '—'}</td>
+                <td><button class="btn-acao" onclick="abrirEdicao('${p.id}')">Editar</button></td>
+            </tr>
+        `).join('');
     }
 
-    document.getElementById('btn-sair').addEventListener('click', () => {
-        AUTH.logout();
+    document.getElementById('info-paginacao').textContent =
+        total === 0 ? '' : `${inicio + 1}–${Math.min(inicio + itensPorPagina, total)} de ${total}`;
+    document.getElementById('btn-anterior').disabled = paginaAtual <= 1;
+    document.getElementById('btn-proximo').disabled = paginaAtual >= totalPaginas;
+}
+
+// ── Busca ──────────────────────────────────────────────────────────────────
+let debounceTimer;
+document.getElementById('busca-paciente').addEventListener('input', e => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => carregarPacientes(e.target.value), 300);
+});
+
+// ── Paginação ──────────────────────────────────────────────────────────────
+document.getElementById('btn-anterior').addEventListener('click', () => {
+    if (Estado.paginaAtual > 1) { Estado.paginaAtual--; renderizarTabela(); }
+});
+document.getElementById('btn-proximo').addEventListener('click', () => {
+    const totalPaginas = Math.ceil(Estado.listaBuscada.length / Estado.itensPorPagina);
+    if (Estado.paginaAtual < totalPaginas) { Estado.paginaAtual++; renderizarTabela(); }
+});
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function abrirModal(titulo, paciente = null) {
+    Estado.pacienteEditando = paciente;
+    document.getElementById('modal-titulo').textContent = titulo;
+    document.getElementById('btn-desativar').style.display = paciente ? 'inline-block' : 'none';
+
+    const form = document.getElementById('form-paciente');
+    form.reset();
+    limparErros();
+
+    if (paciente) {
+        Object.keys(paciente).forEach(key => {
+            const campo = form.elements[key];
+            if (campo) campo.value = paciente[key];
+        });
+    }
+
+    document.getElementById('modal-paciente').classList.add('aberto');
+}
+
+function fecharModal() {
+    document.getElementById('modal-paciente').classList.remove('aberto');
+    Estado.pacienteEditando = null;
+}
+
+document.getElementById('btn-novo-paciente').addEventListener('click', () => abrirModal('Novo Paciente'));
+document.getElementById('btn-fechar-modal').addEventListener('click', fecharModal);
+document.getElementById('btn-cancelar').addEventListener('click', fecharModal);
+document.getElementById('modal-paciente').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-paciente')) fecharModal();
+});
+
+function abrirEdicao(id) {
+    const pac = Estado.listaBuscada.find(p => p.id === id)
+             || Pacientes._cache.find(p => p.id === id);
+    if (pac) abrirModal('Editar Paciente', pac);
+}
+
+// ── Validação do formulário ────────────────────────────────────────────────
+function limparErros() {
+    ['nome', 'nasc', 'cpf', 'tel'].forEach(id => {
+        document.getElementById('erro-' + id).textContent = '';
     });
+}
+
+function validarForm(dados) {
+    let valido = true;
+    limparErros();
+
+    if (!dados.nome_completo.trim()) {
+        document.getElementById('erro-nome').textContent = 'Nome é obrigatório.';
+        valido = false;
+    }
+    if (!dados.data_nascimento) {
+        document.getElementById('erro-nasc').textContent = 'Data de nascimento é obrigatória.';
+        valido = false;
+    }
+    if (!dados.cpf.trim()) {
+        document.getElementById('erro-cpf').textContent = 'CPF é obrigatório.';
+        valido = false;
+    } else if (!Validation.cpf(dados.cpf)) {
+        document.getElementById('erro-cpf').textContent = 'CPF inválido.';
+        valido = false;
+    }
+    if (!dados.telefone.trim()) {
+        document.getElementById('erro-tel').textContent = 'Telefone é obrigatório.';
+        valido = false;
+    }
+    return valido;
+}
+
+// ── Salvar ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-salvar').addEventListener('click', async () => {
+    const form = document.getElementById('form-paciente');
+    const dados = Object.fromEntries(new FormData(form));
+    dados.cpf = Validation.formatarCPF(dados.cpf);
+    dados.telefone = Validation.formatarTelefone(dados.telefone);
+
+    if (!validarForm(dados)) return;
+
+    const btn = document.getElementById('btn-salvar');
+    btn.innerHTML = '<span class="spinner"></span> Salvando...';
+    btn.disabled = true;
+
+    try {
+        if (Estado.pacienteEditando) {
+            const atualizado = { ...Estado.pacienteEditando, ...dados };
+            await Pacientes.editar(Estado.token, Estado.sheetId, atualizado);
+            mostrarToast('Paciente atualizado com sucesso!');
+        } else {
+            await Pacientes.cadastrar(Estado.token, Estado.sheetId, dados);
+            mostrarToast('Paciente cadastrado com sucesso!');
+        }
+        fecharModal();
+        await carregarPacientes(document.getElementById('busca-paciente').value);
+    } catch (e) {
+        console.error(e);
+        mostrarToast('Erro ao salvar. Tente novamente.');
+    } finally {
+        btn.textContent = 'Salvar';
+        btn.disabled = false;
+    }
+});
+
+// ── Desativar ──────────────────────────────────────────────────────────────
+document.getElementById('btn-desativar').addEventListener('click', async () => {
+    if (!confirm(`Desativar "${Estado.pacienteEditando.nome_completo}"? O paciente não aparecerá mais na lista, mas os dados serão mantidos.`)) return;
+
+    try {
+        await Pacientes.desativar(Estado.token, Estado.sheetId, Estado.pacienteEditando);
+        mostrarToast('Paciente desativado.');
+        fecharModal();
+        await carregarPacientes();
+    } catch (e) {
+        console.error(e);
+        mostrarToast('Erro ao desativar. Tente novamente.');
+    }
+});
+
+// ── Formatação automática no formulário ────────────────────────────────────
+document.querySelector('[name="cpf"]').addEventListener('blur', e => {
+    e.target.value = Validation.formatarCPF(e.target.value);
+});
+document.querySelector('[name="telefone"]').addEventListener('blur', e => {
+    e.target.value = Validation.formatarTelefone(e.target.value);
+});
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function mostrarToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('visivel');
+    setTimeout(() => t.classList.remove('visivel'), 3000);
+}
+
+// ── Logout ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-sair').addEventListener('click', () => AUTH.logout());
+
+// ── Start ──────────────────────────────────────────────────────────────────
+inicializar();
 </script>
 </body>
 </html>
