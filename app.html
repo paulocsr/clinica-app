@@ -62,20 +62,25 @@
         .escala-celula.fim-semana { background: #fafafa !important; }
         .turno-label { font-size: 0.8rem; font-weight: 700; }
 
-        /* ── Popup turno ── */
-        #popup-turno {
+        /* ── Popup médico ── */
+        #popup-medico {
             display: none; position: fixed; z-index: 500;
             background: white; border: 1px solid var(--cinza-borda);
             border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-            padding: 0.5rem; min-width: 140px;
+            padding: 0.4rem; min-width: 180px; max-height: 260px; overflow-y: auto;
         }
         .popup-opcao {
             display: flex; align-items: center; gap: 0.5rem;
             padding: 0.4rem 0.6rem; border-radius: 5px; cursor: pointer; font-size: 0.85rem;
         }
         .popup-opcao:hover { background: var(--cinza-claro); }
-        .popup-opcao .badge-turno { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; }
+        .popup-cor { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .popup-separador { border-top: 1px solid var(--cinza-borda); margin: 0.3rem 0; }
+
+        /* ── Escala grid ── */
+        .clinica-header td { background: #e8f0fe; color: var(--azul); font-weight: 700; font-size: 0.85rem; padding: 0.4rem 0.75rem; border: 1px solid #c5d7f5; letter-spacing: 0.05em; }
+        .sala-turno-col { font-size: 0.78rem; padding: 0.3rem 0.6rem; border: 1px solid #e8e8e8; white-space: nowrap; color: var(--texto-suave); position: sticky; left: 0; background: white; z-index: 1; }
+        .sala-turno-col .turno-badge { display: inline-block; width: 16px; height: 16px; border-radius: 3px; font-size: 0.65rem; font-weight: 700; line-height: 16px; text-align: center; margin-right: 4px; }
 
         /* ── Lista médicos ── */
         .medico-card {
@@ -302,6 +307,7 @@
                     <button class="btn btn-secundario" id="btn-mes-ant">← Anterior</button>
                     <span id="periodo-escala" style="font-weight:600; min-width:140px; text-align:center"></span>
                     <button class="btn btn-secundario" id="btn-mes-prox">Próximo →</button>
+                    <button class="btn btn-secundario" id="btn-gerenciar-clinicas">Clínicas e Salas</button>
                     <button class="btn btn-primario" id="btn-gerenciar-medicos">Gerenciar Médicos</button>
                 </div>
             </div>
@@ -315,20 +321,28 @@
     </main>
 </div>
 
-<!-- Popup de seleção de turno -->
-<div id="popup-turno">
-    <div class="popup-opcao" onclick="confirmarTurno('manha')">
-        <div class="badge-turno" style="background:#dbeafe;color:#1d4ed8">M</div> Manhã
-    </div>
-    <div class="popup-opcao" onclick="confirmarTurno('tarde')">
-        <div class="badge-turno" style="background:#fef3c7;color:#92400e">T</div> Tarde
-    </div>
-    <div class="popup-opcao" onclick="confirmarTurno('dia_todo')">
-        <div class="badge-turno" style="background:#dcfce7;color:#166534">D</div> Dia todo
-    </div>
-    <div class="popup-separador" id="popup-separador" style="display:none"></div>
-    <div class="popup-opcao" id="popup-remover" style="display:none; color:#d93025" onclick="confirmarTurno('')">
-        ✕ Remover
+<!-- Popup de seleção de médico -->
+<div id="popup-medico">
+    <div id="popup-medico-lista"></div>
+</div>
+
+<!-- ── Modal: Clínicas e Salas ── -->
+<div class="modal-overlay" id="modal-clinicas">
+    <div class="modal-box" style="max-width:560px">
+        <div class="modal-header">
+            <h3>Clínicas e Salas</h3>
+            <button class="btn-fechar" onclick="fecharModalClinicas()">×</button>
+        </div>
+        <div class="modal-body">
+            <div style="display:flex;gap:0.75rem;margin-bottom:1rem">
+                <input type="text" id="nova-clinica-nome" placeholder="Nome da clínica" style="flex:1">
+                <button class="btn btn-primario" id="btn-add-clinica">+ Clínica</button>
+            </div>
+            <div id="lista-clinicas-salas"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secundario" onclick="fecharModalClinicas()">Fechar</button>
+        </div>
     </div>
 </div>
 
@@ -533,6 +547,7 @@
 <script src="js/modules/pacientes.js"></script>
 <script src="js/modules/agenda.js"></script>
 <script src="js/modules/medicos.js"></script>
+<script src="js/modules/clinicas.js"></script>
 <script src="js/modules/escala.js"></script>
 <script>
 
@@ -984,105 +999,236 @@ const PORTAL_BASE = 'https://paulocsr.github.io/clinica-app/medico.html';
 const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const DIAS_SEMANA_CURTO = ['D','S','T','Q','Q','S','S'];
 
-let escalaAno  = new Date().getFullYear();
-let escalaMes  = new Date().getMonth() + 1;
-let _popupCtx  = null; // { medicoId, data, turnoAtual }
+let escalaAno = new Date().getFullYear();
+let escalaMes = new Date().getMonth() + 1;
+let _popupCtx = null; // { salaId, data, turno }
+
+// ── Migração: cria abas novas se não existirem ──────────
+async function migrarSheets() {
+    const configId = Estado.sheets.configuracoes;
+    const abas = await SheetsService.listarAbas(Estado.token, configId);
+
+    if (!abas.includes('Clinicas'))
+        await SheetsService.adicionarAba(Estado.token, configId, 'Clinicas', ['id','nome','ativo']);
+
+    if (!abas.includes('Salas'))
+        await SheetsService.adicionarAba(Estado.token, configId, 'Salas', ['id','clinica_id','nome','ativo']);
+
+    // Atualiza cabeçalho da aba Escala para o novo schema (sala_id no lugar de medico_id na col 2)
+    const escalaRows = await SheetsService.lerLinhas(Estado.token, configId, 'Escala');
+    const header = escalaRows[0] || [];
+    if (header[1] !== 'sala_id') {
+        await SheetsService.atualizarLinha(Estado.token, configId, 'Escala', 1,
+            ['id','sala_id','medico_id','data','turno','observacao','data_registro']);
+    }
+}
 
 async function inicializarEscala() {
-    await Medicos.listar(Estado.token, Estado.sheets.configuracoes);
+    await migrarSheets();
+    await Promise.all([
+        Clinicas.listarClinicas(Estado.token, Estado.sheets.configuracoes),
+        Clinicas.listarSalas(Estado.token, Estado.sheets.configuracoes),
+        Medicos.listar(Estado.token, Estado.sheets.configuracoes)
+    ]);
     await renderizarEscala();
 }
 
 async function renderizarEscala() {
-    document.getElementById('periodo-escala').textContent =
-        `${MESES_PT[escalaMes - 1]} ${escalaAno}`;
-
-    const medicos = Medicos._cache || [];
+    document.getElementById('periodo-escala').textContent = `${MESES_PT[escalaMes-1]} ${escalaAno}`;
+    const clinicas = Clinicas._clinicasCache || [];
     const escalaDoMes = await Escala.listarMes(Estado.token, Estado.sheets.configuracoes, escalaAno, escalaMes);
-    document.getElementById('escala-grid').innerHTML = montarGridEscala(medicos, escalaDoMes);
+    document.getElementById('escala-grid').innerHTML = montarGridEscala(clinicas, escalaDoMes);
 }
 
-function montarGridEscala(medicos, escalaDoMes) {
+function montarGridEscala(clinicas, escalaDoMes) {
     const diasNoMes = new Date(escalaAno, escalaMes, 0).getDate();
     const hoje = new Date();
-    const eHojeMesAtual = hoje.getFullYear() === escalaAno && hoje.getMonth() + 1 === escalaMes;
+    const ehMesAtual = hoje.getFullYear() === escalaAno && hoje.getMonth() + 1 === escalaMes;
+    const ORDEM_TURNOS = ['manha','tarde','noite'];
 
-    let html = '<thead><tr>';
-    html += '<th class="escala-medico-col">Médico</th>';
+    // Cabeçalho de dias
+    let html = '<thead><tr><th class="escala-medico-col" style="min-width:160px">Clínica / Sala / Turno</th>';
     for (let d = 1; d <= diasNoMes; d++) {
-        const ds = new Date(escalaAno, escalaMes - 1, d).getDay();
+        const ds = new Date(escalaAno, escalaMes-1, d).getDay();
         const fds = ds === 0 || ds === 6;
-        const ehHoje = eHojeMesAtual && d === hoje.getDate();
-        html += `<th class="${fds ? 'fim-semana' : ''} ${ehHoje ? 'hoje-col' : ''}">${d}<br>${DIAS_SEMANA_CURTO[ds]}</th>`;
+        const ehHoje = ehMesAtual && d === hoje.getDate();
+        html += `<th class="${fds?'fim-semana':''} ${ehHoje?'hoje-col':''}">${d}<br>${DIAS_SEMANA_CURTO[ds]}</th>`;
     }
     html += '</tr></thead><tbody>';
 
-    if (medicos.length === 0) {
-        html += `<tr><td colspan="${diasNoMes + 1}" class="vazio">Nenhum médico cadastrado. Clique em "Gerenciar Médicos" para adicionar.</td></tr>`;
+    if (clinicas.length === 0) {
+        html += `<tr><td colspan="${diasNoMes+1}" class="vazio">Nenhuma clínica cadastrada. Clique em "Clínicas e Salas" para configurar.</td></tr>`;
     } else {
-        medicos.forEach(med => {
-            html += `<tr><td class="escala-medico-nome" style="border-left:3px solid ${med.cor_agenda}">${med.nome}</td>`;
-            for (let d = 1; d <= diasNoMes; d++) {
-                const dataStr = `${escalaAno}-${String(escalaMes).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                const entrada = escalaDoMes.find(e => e.medico_id === med.id && e.data === dataStr);
-                const turno = entrada ? entrada.turno : '';
-                const ti = turno ? Escala.TURNOS[turno] : null;
-                const ds = new Date(escalaAno, escalaMes - 1, d).getDay();
-                const fds = ds === 0 || ds === 6;
-                html += `<td class="escala-celula ${fds ? 'fim-semana' : ''}"
-                    style="${ti ? `background:${ti.bg}` : ''}"
-                    title="${ti ? ti.titulo : 'Clique para adicionar turno'}"
-                    onclick="abrirPopupTurno(event,'${med.id}','${dataStr}','${turno}')">
-                    ${ti ? `<span class="turno-label" style="color:${ti.cor}">${ti.label}</span>` : ''}
-                </td>`;
+        clinicas.forEach(clinica => {
+            // Linha separadora de clínica
+            html += `<tr class="clinica-header"><td colspan="${diasNoMes+1}">${clinica.nome.toUpperCase()}</td></tr>`;
+
+            const salas = Clinicas.salasDeClinica(clinica.id);
+            if (salas.length === 0) {
+                html += `<tr><td colspan="${diasNoMes+1}" class="vazio" style="font-size:0.8rem">Nenhuma sala cadastrada para esta clínica.</td></tr>`;
+            } else {
+                salas.forEach(sala => {
+                    ORDEM_TURNOS.forEach(turno => {
+                        const ti = Escala.TURNOS[turno];
+                        html += `<tr>
+                            <td class="sala-turno-col">
+                                <span class="turno-badge" style="background:${ti.bg};color:${ti.cor}">${ti.label}</span>
+                                ${sala.nome}
+                            </td>`;
+                        for (let d = 1; d <= diasNoMes; d++) {
+                            const dataStr = `${escalaAno}-${String(escalaMes).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                            const entrada = escalaDoMes.find(e => e.sala_id === sala.id && e.data === dataStr && e.turno === turno);
+                            const medico = entrada ? (Medicos._cache||[]).find(m => m.id === entrada.medico_id) : null;
+                            const ds = new Date(escalaAno, escalaMes-1, d).getDay();
+                            const fds = ds === 0 || ds === 6;
+                            html += `<td class="escala-celula ${fds?'fim-semana':''}"
+                                style="${medico ? `background:${medico.cor_agenda}22;border-left:2px solid ${medico.cor_agenda}` : ''}"
+                                title="${medico ? medico.nome : 'Clique para atribuir médico'}"
+                                onclick="abrirPickerMedico(event,'${sala.id}','${dataStr}','${turno}','${entrada ? entrada.medico_id : ''}')">
+                                ${medico ? `<span style="font-size:0.7rem;font-weight:600;color:${medico.cor_agenda}">${medico.nome.split(' ')[0]}</span>` : ''}
+                            </td>`;
+                        }
+                        html += '</tr>';
+                    });
+                });
             }
-            html += '</tr>';
         });
     }
     html += '</tbody>';
     return html;
 }
 
-function abrirPopupTurno(event, medicoId, data, turnoAtual) {
+// ── Picker de médico ──────────────────────────────────
+function abrirPickerMedico(event, salaId, data, turno, medicoAtualId) {
     event.stopPropagation();
-    _popupCtx = { medicoId, data, turnoAtual };
-    const popup = document.getElementById('popup-turno');
-    const temTurno = !!turnoAtual;
-    document.getElementById('popup-separador').style.display = temTurno ? 'block' : 'none';
-    document.getElementById('popup-remover').style.display   = temTurno ? 'flex' : 'none';
+    _popupCtx = { salaId, data, turno, medicoAtualId };
+    const medicos = Medicos._cache || [];
+    const lista = document.getElementById('popup-medico-lista');
+
+    let html = medicos.map(m => `
+        <div class="popup-opcao ${m.id === medicoAtualId ? 'ativo' : ''}"
+            onclick="confirmarMedico('${m.id}')"
+            style="${m.id === medicoAtualId ? 'background:#e8f0fe' : ''}">
+            <span class="popup-cor" style="background:${m.cor_agenda}"></span>
+            ${m.nome}
+        </div>`).join('');
+
+    if (medicoAtualId) {
+        html += `<div class="popup-separador"></div>
+                 <div class="popup-opcao" onclick="confirmarMedico('')" style="color:#d93025">✕ Remover</div>`;
+    }
+    if (!medicos.length) {
+        html = '<div style="padding:0.5rem;font-size:0.85rem;color:#999">Nenhum médico cadastrado.</div>';
+    }
+    lista.innerHTML = html;
+
+    const popup = document.getElementById('popup-medico');
     popup.style.display = 'block';
-    const rect = event.target.getBoundingClientRect();
-    popup.style.left = Math.min(rect.left, window.innerWidth - 160) + 'px';
+    const rect = event.currentTarget.getBoundingClientRect();
+    popup.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
     popup.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
 }
 
-async function confirmarTurno(novoTurno) {
-    document.getElementById('popup-turno').style.display = 'none';
+async function confirmarMedico(medicoId) {
+    document.getElementById('popup-medico').style.display = 'none';
     if (!_popupCtx) return;
-    const { medicoId, data, turnoAtual } = _popupCtx;
-    if (novoTurno === turnoAtual) return;
+    const { salaId, data, turno, medicoAtualId } = _popupCtx;
+    if (medicoId === medicoAtualId) return;
     try {
-        await Escala.alterarTurno(Estado.token, Estado.sheets.configuracoes, medicoId, data, novoTurno);
+        await Escala.atribuirMedico(Estado.token, Estado.sheets.configuracoes, salaId, data, turno, medicoId);
         await renderizarEscala();
-    } catch (e) { console.error(e); mostrarToast('Erro ao salvar turno.'); }
+    } catch (e) { console.error(e); mostrarToast('Erro ao salvar.'); }
 }
 
 document.addEventListener('click', () => {
-    document.getElementById('popup-turno').style.display = 'none';
+    document.getElementById('popup-medico').style.display = 'none';
 });
 
 document.getElementById('btn-mes-ant').addEventListener('click', async () => {
-    escalaMes--;
-    if (escalaMes < 1) { escalaMes = 12; escalaAno--; }
+    if (--escalaMes < 1) { escalaMes = 12; escalaAno--; }
     Escala.invalidarCache();
     await renderizarEscala();
 });
 document.getElementById('btn-mes-prox').addEventListener('click', async () => {
-    escalaMes++;
-    if (escalaMes > 12) { escalaMes = 1; escalaAno++; }
+    if (++escalaMes > 12) { escalaMes = 1; escalaAno++; }
     Escala.invalidarCache();
     await renderizarEscala();
 });
+
+// ── Gestão de Clínicas e Salas ──────────────────────────
+document.getElementById('btn-gerenciar-clinicas').addEventListener('click', abrirModalClinicas);
+
+async function abrirModalClinicas() {
+    document.getElementById('modal-clinicas').classList.add('aberto');
+    await renderizarListaClinicas();
+}
+function fecharModalClinicas() { document.getElementById('modal-clinicas').classList.remove('aberto'); }
+
+async function renderizarListaClinicas() {
+    const div = document.getElementById('lista-clinicas-salas');
+    div.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Carregando...</p>';
+    Clinicas.invalidarCache();
+    await Clinicas.listarClinicas(Estado.token, Estado.sheets.configuracoes);
+    await Clinicas.listarSalas(Estado.token, Estado.sheets.configuracoes);
+    const clinicas = Clinicas._clinicasCache || [];
+
+    if (clinicas.length === 0) { div.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Nenhuma clínica cadastrada.</p>'; return; }
+
+    div.innerHTML = clinicas.map(c => {
+        const salas = Clinicas.salasDeClinica(c.id);
+        return `<div style="border:1px solid var(--cinza-borda);border-radius:8px;padding:0.75rem;margin-bottom:0.75rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+                <strong>${c.nome}</strong>
+                <button class="btn-acao" style="color:#d93025" onclick="desativarClinica('${c.id}')">Remover</button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem">
+                ${salas.map(s => `<span style="background:#f0f4f8;border-radius:4px;padding:0.2rem 0.6rem;font-size:0.8rem">
+                    ${s.nome}
+                    <button class="btn-acao" style="color:#d93025;padding:0;font-size:0.75rem" onclick="desativarSala('${s.id}')">×</button>
+                </span>`).join('')}
+            </div>
+            <div style="display:flex;gap:0.5rem">
+                <input type="text" id="nova-sala-${c.id}" placeholder="Nome da sala" style="flex:1;font-size:0.85rem;padding:0.3rem 0.6rem">
+                <button class="btn btn-secundario" style="font-size:0.8rem;padding:0.3rem 0.75rem" onclick="adicionarSala('${c.id}')">+ Sala</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+document.getElementById('btn-add-clinica').addEventListener('click', async () => {
+    const nome = document.getElementById('nova-clinica-nome').value.trim();
+    if (!nome) return;
+    await Clinicas.cadastrarClinica(Estado.token, Estado.sheets.configuracoes, nome);
+    document.getElementById('nova-clinica-nome').value = '';
+    await renderizarListaClinicas();
+    await renderizarEscala();
+});
+
+async function adicionarSala(clinicaId) {
+    const input = document.getElementById(`nova-sala-${clinicaId}`);
+    const nome = input.value.trim();
+    if (!nome) return;
+    await Clinicas.cadastrarSala(Estado.token, Estado.sheets.configuracoes, clinicaId, nome);
+    input.value = '';
+    await renderizarListaClinicas();
+    await renderizarEscala();
+}
+
+async function desativarClinica(clinicaId) {
+    const c = (Clinicas._clinicasCache||[]).find(x => x.id === clinicaId);
+    if (!c || !confirm(`Remover clínica "${c.nome}"?`)) return;
+    await Clinicas.desativarClinica(Estado.token, Estado.sheets.configuracoes, c);
+    await renderizarListaClinicas();
+    await renderizarEscala();
+}
+
+async function desativarSala(salaId) {
+    const s = (Clinicas._salasCache||[]).find(x => x.id === salaId);
+    if (!s || !confirm(`Remover sala "${s.nome}"?`)) return;
+    await Clinicas.desativarSala(Estado.token, Estado.sheets.configuracoes, s);
+    await renderizarListaClinicas();
+    await renderizarEscala();
+}
 
 // ── Gestão de Médicos ──────────────────────────────────
 let medicoEditando = null;
@@ -1099,28 +1245,22 @@ async function renderizarListaMedicos() {
     const lista = document.getElementById('lista-medicos');
     lista.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Carregando...</p>';
     const todos = await Medicos.listarTodos(Estado.token, Estado.sheets.configuracoes);
-    if (todos.length === 0) {
-        lista.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Nenhum médico cadastrado.</p>';
-        return;
-    }
+    if (todos.length === 0) { lista.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Nenhum médico cadastrado.</p>'; return; }
     lista.innerHTML = todos.map(m => `
         <div class="medico-card">
             <div class="medico-cor" style="background:${m.cor_agenda}"></div>
             <div class="medico-info">
-                <strong>${m.nome} ${m.ativo === 'FALSE' ? '<small style="color:#999">(inativo)</small>' : ''}</strong>
-                <small>${[m.especialidade, m.crm].filter(Boolean).join(' · ') || 'Sem especialidade'}</small>
-                ${m.token ? `<div class="medico-link" title="Link do portal do médico">
-                    🔗 <a href="${PORTAL_BASE}?token=${m.token}" target="_blank">Portal pessoal</a>
-                    <button class="btn-acao" onclick="copiarLink('${m.token}')" title="Copiar link">📋</button>
-                </div>` : ''}
+                <strong>${m.nome} ${m.ativo==='FALSE'?'<small style="color:#999">(inativo)</small>':''}</strong>
+                <small>${[m.especialidade,m.crm].filter(Boolean).join(' · ')||'Sem especialidade'}</small>
+                ${m.token?`<div class="medico-link">🔗 <a href="${PORTAL_BASE}?token=${m.token}" target="_blank">Portal pessoal</a>
+                    <button class="btn-acao" onclick="copiarLink('${m.token}')" title="Copiar">📋</button></div>`:''}
             </div>
             <button class="btn btn-secundario" onclick="abrirFormMedico('${m.id}')">Editar</button>
-        </div>
-    `).join('');
+        </div>`).join('');
 }
 
-function copiarLink(token) {
-    navigator.clipboard.writeText(`${PORTAL_BASE}?token=${token}`);
+function copiarLink(tk) {
+    navigator.clipboard.writeText(`${PORTAL_BASE}?token=${tk}`);
     mostrarToast('Link copiado!');
 }
 
@@ -1131,10 +1271,7 @@ async function abrirFormMedico(medicoId) {
     document.getElementById('form-med-titulo').textContent = medicoId ? 'Editar Médico' : 'Novo Médico';
     document.getElementById('btn-desativar-med').style.display = 'none';
     document.getElementById('erro-med-nome').textContent = '';
-    document.getElementById('med-nome').value = '';
-    document.getElementById('med-especialidade').value = '';
-    document.getElementById('med-crm').value = '';
-    document.getElementById('med-email').value = '';
+    ['med-nome','med-especialidade','med-crm','med-email'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('med-cor').value = '#1a73e8';
 
     if (medicoId) {
@@ -1146,7 +1283,7 @@ async function abrirFormMedico(medicoId) {
             document.getElementById('med-crm').value = medicoEditando.crm;
             document.getElementById('med-email').value = medicoEditando.email;
             document.getElementById('med-cor').value = medicoEditando.cor_agenda || '#1a73e8';
-            document.getElementById('btn-desativar-med').style.display = medicoEditando.ativo === 'TRUE' ? 'inline-block' : 'none';
+            document.getElementById('btn-desativar-med').style.display = medicoEditando.ativo==='TRUE' ? 'inline-block' : 'none';
         }
     }
     document.getElementById('modal-form-medico').classList.add('aberto');
@@ -1157,30 +1294,19 @@ document.getElementById('btn-salvar-medico').addEventListener('click', async () 
     const nome = document.getElementById('med-nome').value.trim();
     document.getElementById('erro-med-nome').textContent = '';
     if (!nome) { document.getElementById('erro-med-nome').textContent = 'Obrigatório.'; return; }
-
-    const dados = {
-        nome,
-        especialidade: document.getElementById('med-especialidade').value.trim(),
-        crm: document.getElementById('med-crm').value.trim(),
-        email: document.getElementById('med-email').value.trim(),
-        cor_agenda: document.getElementById('med-cor').value
-    };
-
+    const dados = { nome, especialidade: document.getElementById('med-especialidade').value.trim(),
+        crm: document.getElementById('med-crm').value.trim(), email: document.getElementById('med-email').value.trim(),
+        cor_agenda: document.getElementById('med-cor').value };
     const btn = document.getElementById('btn-salvar-medico');
     btn.innerHTML = '<span class="spinner"></span> Salvando...'; btn.disabled = true;
     try {
-        if (medicoEditando) {
-            await Medicos.editar(Estado.token, Estado.sheets.configuracoes, { ...medicoEditando, ...dados });
-            mostrarToast('Médico atualizado!');
-        } else {
-            await Medicos.cadastrar(Estado.token, Estado.sheets.configuracoes, dados);
-            mostrarToast('Médico cadastrado!');
-        }
+        if (medicoEditando) { await Medicos.editar(Estado.token, Estado.sheets.configuracoes, {...medicoEditando,...dados}); mostrarToast('Médico atualizado!'); }
+        else { await Medicos.cadastrar(Estado.token, Estado.sheets.configuracoes, dados); mostrarToast('Médico cadastrado!'); }
         fecharFormMedico();
         await renderizarListaMedicos();
         Medicos.invalidarCache();
-        await renderizarEscala();
-    } catch (e) { console.error(e); mostrarToast('Erro ao salvar.'); }
+        if (document.getElementById('view-escala').classList.contains('ativo')) await renderizarEscala();
+    } catch(e) { console.error(e); mostrarToast('Erro ao salvar.'); }
     finally { btn.textContent = 'Salvar'; btn.disabled = false; }
 });
 
@@ -1192,8 +1318,7 @@ document.getElementById('btn-desativar-med').addEventListener('click', async () 
         fecharFormMedico();
         await renderizarListaMedicos();
         Medicos.invalidarCache();
-        await renderizarEscala();
-    } catch (e) { mostrarToast('Erro ao desativar.'); }
+    } catch(e) { mostrarToast('Erro ao desativar.'); }
 });
 
 // ══════════════════════════════════════════════════════

@@ -5,13 +5,8 @@ const SheetsService = {
             sheets: abas.map(aba => ({
                 properties: { title: aba.nome },
                 data: [{
-                    startRow: 0,
-                    startColumn: 0,
-                    rowData: [{
-                        values: aba.cabecalhos.map(h => ({
-                            userEnteredValue: { stringValue: h }
-                        }))
-                    }]
+                    startRow: 0, startColumn: 0,
+                    rowData: [{ values: aba.cabecalhos.map(h => ({ userEnteredValue: { stringValue: h } })) }]
                 }]
             }))
         };
@@ -48,5 +43,21 @@ const SheetsService = {
             headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
             body: JSON.stringify({ values: [valores] })
         });
+    },
+
+    async listarAbas(token, sheetId) {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`;
+        const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+        const data = await resp.json();
+        return (data.sheets || []).map(s => s.properties.title);
+    },
+
+    async adicionarAba(token, sheetId, nomeAba, cabecalhos) {
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requests: [{ addSheet: { properties: { title: nomeAba } } }] })
+        });
+        await this.adicionarLinha(token, sheetId, nomeAba, cabecalhos);
     }
 };

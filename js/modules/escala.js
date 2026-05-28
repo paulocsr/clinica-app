@@ -2,30 +2,32 @@ const Escala = {
     _cache: null,
 
     TURNOS: {
-        manha:    { label: 'M', titulo: 'Manhã',    bg: '#dbeafe', cor: '#1d4ed8' },
-        tarde:    { label: 'T', titulo: 'Tarde',    bg: '#fef3c7', cor: '#92400e' },
-        dia_todo: { label: 'D', titulo: 'Dia todo', bg: '#dcfce7', cor: '#166534' }
+        manha: { label: 'M', titulo: 'Manhã',  bg: '#dbeafe', cor: '#1d4ed8' },
+        tarde: { label: 'T', titulo: 'Tarde',  bg: '#fef3c7', cor: '#92400e' },
+        noite: { label: 'N', titulo: 'Noite',  bg: '#f3e8ff', cor: '#7e22ce' }
     },
 
+    // Schema: id, sala_id, medico_id, data, turno, observacao, data_registro
     _rowToObj(row, sheetRow) {
         return {
             _sheetRow: sheetRow,
             id:           row[0] || '',
-            medico_id:    row[1] || '',
-            data:         row[2] || '',
-            turno:        row[3] || '',
-            observacao:   row[4] || '',
-            data_registro: row[5] || ''
+            sala_id:      row[1] || '',
+            medico_id:    row[2] || '',
+            data:         row[3] || '',
+            turno:        row[4] || '',
+            observacao:   row[5] || '',
+            data_registro: row[6] || ''
         };
     },
 
     _objToRow(e) {
-        return [e.id, e.medico_id, e.data, e.turno, e.observacao, e.data_registro];
+        return [e.id, e.sala_id, e.medico_id, e.data, e.turno, e.observacao, e.data_registro];
     },
 
-    gerarId() {
-        const d = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        return `esc_${d}_${Math.random().toString(36).slice(2, 6)}`;
+    _gerarId() {
+        const d = new Date().toISOString().slice(0,10).replace(/-/g,'');
+        return `esc_${d}_${Math.random().toString(36).slice(2,6)}`;
     },
 
     async _ensureCache(token, sheetId) {
@@ -33,30 +35,33 @@ const Escala = {
         const rows = await SheetsService.lerLinhas(token, sheetId, 'Escala');
         this._cache = rows.slice(1)
             .map((r, i) => this._rowToObj(r, i + 2))
-            .filter(e => e.id && e.turno); // ignora linhas removidas
+            .filter(e => e.id && e.sala_id && e.medico_id);
     },
 
     async listarMes(token, sheetId, ano, mes) {
         await this._ensureCache(token, sheetId);
-        const prefixo = `${ano}-${String(mes).padStart(2, '0')}`;
+        const prefixo = `${ano}-${String(mes).padStart(2,'0')}`;
         return this._cache.filter(e => e.data.startsWith(prefixo));
     },
 
-    async alterarTurno(token, sheetId, medicoId, data, novoTurno) {
-        await this._ensureCache(token, sheetId);
-        const existente = this._cache.find(e => e.medico_id === medicoId && e.data === data);
+    getEntrada(salaId, data, turno) {
+        return (this._cache || []).find(e =>
+            e.sala_id === salaId && e.data === data && e.turno === turno
+        ) || null;
+    },
 
-        if (existente) {
-            const atualizado = { ...existente, turno: novoTurno };
-            await SheetsService.atualizarLinha(token, sheetId, 'Escala', existente._sheetRow, this._objToRow(atualizado));
-        } else if (novoTurno) {
+    async atribuirMedico(token, sheetId, salaId, data, turno, medicoId) {
+        await this._ensureCache(token, sheetId);
+        const existing = this.getEntrada(salaId, data, turno);
+
+        if (existing) {
+            // Update (or clear if medicoId is empty)
+            await SheetsService.atualizarLinha(token, sheetId, 'Escala', existing._sheetRow,
+                this._objToRow({ ...existing, medico_id: medicoId || '' }));
+        } else if (medicoId) {
             const nova = {
-                id: this.gerarId(),
-                medico_id: medicoId,
-                data,
-                turno: novoTurno,
-                observacao: '',
-                data_registro: new Date().toISOString()
+                id: this._gerarId(), sala_id: salaId, medico_id: medicoId,
+                data, turno, observacao: '', data_registro: new Date().toISOString()
             };
             await SheetsService.adicionarLinha(token, sheetId, 'Escala', this._objToRow(nova));
         }
