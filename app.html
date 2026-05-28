@@ -82,6 +82,21 @@
         .sala-turno-col { font-size: 0.78rem; padding: 0.3rem 0.6rem; border: 1px solid #e8e8e8; white-space: nowrap; color: var(--texto-suave); position: sticky; left: 0; background: white; z-index: 1; }
         .sala-turno-col .turno-badge { display: inline-block; width: 16px; height: 16px; border-radius: 3px; font-size: 0.65rem; font-weight: 700; line-height: 16px; text-align: center; margin-right: 4px; }
 
+        /* ── Mobile ── */
+        #btn-hamburger { display: none; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: white; padding: 0.25rem 0.5rem; margin-right: 0.5rem; }
+        #sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; }
+        #sidebar-overlay.visivel { display: block; }
+        @media (max-width: 768px) {
+            #btn-hamburger { display: block; }
+            nav.sidebar { position: fixed; left: 0; transform: translateX(-210px); transition: transform 0.25s; z-index: 100; box-shadow: 4px 0 16px rgba(0,0,0,0.15); }
+            nav.sidebar.aberta { transform: translateX(0); }
+            main.conteudo { margin-left: 0; padding: 1rem 0.75rem; }
+            .view-header { flex-wrap: wrap; gap: 0.5rem; }
+            .view-acoes { flex-wrap: wrap; gap: 0.4rem; }
+            .escala-celula { height: 26px; }
+            .sala-turno-col { min-width: 100px; max-width: 140px; }
+        }
+
         /* ── Lista médicos ── */
         .medico-card {
             background: white; border-radius: 8px; padding: 1rem 1.25rem;
@@ -232,13 +247,17 @@
 <body>
 
 <header>
-    <h1>Clínica App</h1>
+    <div style="display:flex;align-items:center">
+        <button id="btn-hamburger">☰</button>
+        <h1>Clínica App</h1>
+    </div>
     <div class="header-usuario">
         <span id="nome-usuario"></span>
         <button class="btn-sair" id="btn-sair">Sair</button>
     </div>
 </header>
 
+<div id="sidebar-overlay"></div>
 <div class="app-body">
     <nav class="sidebar">
         <div class="nav-item ativo" data-view="pacientes">👥 Pacientes</div>
@@ -1003,6 +1022,13 @@ let escalaAno = new Date().getFullYear();
 let escalaMes = new Date().getMonth() + 1;
 let _popupCtx = null; // { salaId, data, turno }
 
+function nomeAbreviado(nome) {
+    const partes = nome.trim().split(/\s+/).filter(p => !['dr.','dra.','dr','dra'].includes(p.toLowerCase()));
+    if (!partes.length) return nome.split(' ')[0] || nome;
+    if (partes.length === 1) return partes[0];
+    return `${partes[0]} ${partes[partes.length - 1][0]}.`;
+}
+
 // ── Migração: cria abas novas se não existirem ──────────
 async function migrarSheets() {
     const configId = Estado.sheets.configuracoes;
@@ -1068,7 +1094,8 @@ function montarGridEscala(clinicas, escalaDoMes) {
                 html += `<tr><td colspan="${diasNoMes+1}" class="vazio" style="font-size:0.8rem">Nenhuma sala cadastrada para esta clínica.</td></tr>`;
             } else {
                 salas.forEach(sala => {
-                    ORDEM_TURNOS.forEach(turno => {
+                    const turnosDaSala = (sala.turnos || 'manha,tarde,noite').split(',');
+                    ORDEM_TURNOS.filter(t => turnosDaSala.includes(t)).forEach(turno => {
                         const ti = Escala.TURNOS[turno];
                         html += `<tr>
                             <td class="sala-turno-col">
@@ -1085,7 +1112,7 @@ function montarGridEscala(clinicas, escalaDoMes) {
                                 style="${medico ? `background:${medico.cor_agenda}22;border-left:2px solid ${medico.cor_agenda}` : ''}"
                                 title="${medico ? medico.nome : 'Clique para atribuir médico'}"
                                 onclick="abrirPickerMedico(event,'${sala.id}','${dataStr}','${turno}','${entrada ? entrada.medico_id : ''}')">
-                                ${medico ? `<span style="font-size:0.7rem;font-weight:600;color:${medico.cor_agenda}">${medico.nome.split(' ')[0]}</span>` : ''}
+                                ${medico ? `<span style="font-size:0.68rem;font-weight:600;color:${medico.cor_agenda};line-height:1.1;display:block">${nomeAbreviado(medico.nome)}</span>` : ''}
                             </td>`;
                         }
                         html += '</tr>';
@@ -1182,13 +1209,25 @@ async function renderizarListaClinicas() {
                 <button class="btn-acao" style="color:#d93025" onclick="desativarClinica('${c.id}')">Remover</button>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem">
-                ${salas.map(s => `<span style="background:#f0f4f8;border-radius:4px;padding:0.2rem 0.6rem;font-size:0.8rem">
-                    ${s.nome}
-                    <button class="btn-acao" style="color:#d93025;padding:0;font-size:0.75rem" onclick="desativarSala('${s.id}')">×</button>
-                </span>`).join('')}
+                ${salas.map(s => {
+                    const ts = (s.turnos||'manha,tarde,noite').split(',');
+                    const badges = ['manha','tarde','noite'].filter(t => ts.includes(t)).map(t => {
+                        const ti = Escala.TURNOS[t];
+                        return `<span style="background:${ti.bg};color:${ti.cor};border-radius:3px;padding:0 3px;font-size:0.65rem;font-weight:700">${ti.label}</span>`;
+                    }).join('');
+                    return `<span style="background:#f0f4f8;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.8rem;display:inline-flex;align-items:center;gap:0.3rem">
+                        ${s.nome} ${badges}
+                        <button class="btn-acao" style="color:#d93025;padding:0;font-size:0.75rem" onclick="desativarSala('${s.id}')">×</button>
+                    </span>`;
+                }).join('')}
             </div>
-            <div style="display:flex;gap:0.5rem">
-                <input type="text" id="nova-sala-${c.id}" placeholder="Nome da sala" style="flex:1;font-size:0.85rem;padding:0.3rem 0.6rem">
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+                <input type="text" id="nova-sala-${c.id}" placeholder="Nome da sala" style="flex:1;min-width:120px;font-size:0.85rem;padding:0.3rem 0.6rem">
+                <span style="display:flex;gap:0.4rem;font-size:0.78rem;align-items:center">
+                    <label style="display:flex;align-items:center;gap:2px;cursor:pointer"><input type="checkbox" id="t-m-${c.id}" checked> M</label>
+                    <label style="display:flex;align-items:center;gap:2px;cursor:pointer"><input type="checkbox" id="t-t-${c.id}" checked> T</label>
+                    <label style="display:flex;align-items:center;gap:2px;cursor:pointer"><input type="checkbox" id="t-n-${c.id}" checked> N</label>
+                </span>
                 <button class="btn btn-secundario" style="font-size:0.8rem;padding:0.3rem 0.75rem" onclick="adicionarSala('${c.id}')">+ Sala</button>
             </div>
         </div>`;
@@ -1208,7 +1247,11 @@ async function adicionarSala(clinicaId) {
     const input = document.getElementById(`nova-sala-${clinicaId}`);
     const nome = input.value.trim();
     if (!nome) return;
-    await Clinicas.cadastrarSala(Estado.token, Estado.sheets.configuracoes, clinicaId, nome);
+    const tm = document.getElementById(`t-m-${clinicaId}`)?.checked;
+    const tt = document.getElementById(`t-t-${clinicaId}`)?.checked;
+    const tn = document.getElementById(`t-n-${clinicaId}`)?.checked;
+    const turnos = [tm && 'manha', tt && 'tarde', tn && 'noite'].filter(Boolean).join(',') || 'manha';
+    await Clinicas.cadastrarSala(Estado.token, Estado.sheets.configuracoes, clinicaId, nome, turnos);
     input.value = '';
     await renderizarListaClinicas();
     await renderizarEscala();
@@ -1332,6 +1375,24 @@ function mostrarToast(msg) {
 }
 
 document.getElementById('btn-sair').addEventListener('click', () => AUTH.logout());
+
+// ── Sidebar mobile (hamburger) ──────────────────────────
+const sidebar = document.querySelector('.sidebar');
+const overlay = document.getElementById('sidebar-overlay');
+document.getElementById('btn-hamburger').addEventListener('click', () => {
+    sidebar.classList.toggle('aberta');
+    overlay.classList.toggle('visivel');
+});
+overlay.addEventListener('click', () => {
+    sidebar.classList.remove('aberta');
+    overlay.classList.remove('visivel');
+});
+document.querySelectorAll('.nav-item:not(.desativado)').forEach(item => {
+    item.addEventListener('click', () => {
+        sidebar.classList.remove('aberta');
+        overlay.classList.remove('visivel');
+    });
+});
 
 inicializar();
 </script>

@@ -4,8 +4,8 @@ const Clinicas = {
 
     _clinicaToObj(row, i) { return { _sheetRow: i+2, id: row[0]||'', nome: row[1]||'', ativo: row[2]||'TRUE' }; },
     _clinicaToRow(c) { return [c.id, c.nome, c.ativo]; },
-    _salaToObj(row, i) { return { _sheetRow: i+2, id: row[0]||'', clinica_id: row[1]||'', nome: row[2]||'', ativo: row[3]||'TRUE' }; },
-    _salaToRow(s) { return [s.id, s.clinica_id, s.nome, s.ativo]; },
+    _salaToObj(row, i) { return { _sheetRow: i+2, id: row[0]||'', clinica_id: row[1]||'', nome: row[2]||'', ativo: row[3]||'TRUE', turnos: row[4]||'manha,tarde,noite' }; },
+    _salaToRow(s) { return [s.id, s.clinica_id, s.nome, s.ativo, s.turnos||'manha,tarde,noite']; },
 
     _gerarId(prefixo) {
         const d = new Date().toISOString().slice(0,10).replace(/-/g,'');
@@ -37,8 +37,8 @@ const Clinicas = {
         return c;
     },
 
-    async cadastrarSala(token, sheetId, clinicaId, nome) {
-        const s = { id: this._gerarId('sal'), clinica_id: clinicaId, nome, ativo: 'TRUE' };
+    async cadastrarSala(token, sheetId, clinicaId, nome, turnos = 'manha,tarde,noite') {
+        const s = { id: this._gerarId('sal'), clinica_id: clinicaId, nome, ativo: 'TRUE', turnos };
         await SheetsService.adicionarLinha(token, sheetId, 'Salas', this._salaToRow(s));
         this._salasCache = null;
         return s;
