@@ -49,6 +49,46 @@
         .nav-item.desativado { color: #bbb; cursor: default; }
         .nav-item.desativado:hover { background: none; }
 
+        /* ── Escala ── */
+        .escala-wrap { overflow-x: auto; background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
+        .escala-grid { border-collapse: collapse; min-width: 100%; }
+        .escala-grid th { background: #f8f9fa; padding: 0.3rem 0.4rem; text-align: center; font-size: 0.75rem; border: 1px solid #e8e8e8; color: var(--texto-suave); min-width: 28px; }
+        .escala-grid th.fim-semana { background: #f1f3f4; }
+        .escala-grid th.hoje-col { background: #e8f0fe; color: var(--azul); }
+        .escala-medico-col { width: 160px; text-align: left !important; padding: 0.5rem 0.75rem !important; font-size: 0.85rem !important; position: sticky; left: 0; background: #f8f9fa !important; z-index: 1; }
+        .escala-medico-nome { padding: 0.4rem 0.75rem; font-size: 0.85rem; font-weight: 500; border: 1px solid #e8e8e8; position: sticky; left: 0; background: white; z-index: 1; white-space: nowrap; }
+        .escala-celula { border: 1px solid #f0f0f0; height: 32px; text-align: center; cursor: pointer; transition: filter 0.1s; }
+        .escala-celula:hover { filter: brightness(0.92); }
+        .escala-celula.fim-semana { background: #fafafa !important; }
+        .turno-label { font-size: 0.8rem; font-weight: 700; }
+
+        /* ── Popup turno ── */
+        #popup-turno {
+            display: none; position: fixed; z-index: 500;
+            background: white; border: 1px solid var(--cinza-borda);
+            border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            padding: 0.5rem; min-width: 140px;
+        }
+        .popup-opcao {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.4rem 0.6rem; border-radius: 5px; cursor: pointer; font-size: 0.85rem;
+        }
+        .popup-opcao:hover { background: var(--cinza-claro); }
+        .popup-opcao .badge-turno { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; }
+        .popup-separador { border-top: 1px solid var(--cinza-borda); margin: 0.3rem 0; }
+
+        /* ── Lista médicos ── */
+        .medico-card {
+            background: white; border-radius: 8px; padding: 1rem 1.25rem;
+            border: 1px solid var(--cinza-borda); display: flex; align-items: center; gap: 1rem;
+        }
+        .medico-cor { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+        .medico-info { flex: 1; }
+        .medico-info strong { display: block; font-size: 0.95rem; }
+        .medico-info small { color: var(--texto-suave); font-size: 0.8rem; }
+        .medico-link { font-size: 0.75rem; color: var(--azul); word-break: break-all; }
+        .lista-medicos { display: flex; flex-direction: column; gap: 0.75rem; }
+
         /* ── Conteúdo ── */
         main.conteudo { margin-left: var(--sidebar-w); flex: 1; padding: 2rem; }
         .view { display: none; }
@@ -200,7 +240,7 @@
         <div class="nav-item" data-view="agenda">📅 Agenda</div>
         <div class="nav-item desativado">📝 Anotações</div>
         <div class="nav-item desativado">💰 Financeiro</div>
-        <div class="nav-item desativado">🗓️ Escala</div>
+        <div class="nav-item" data-view="escala">🗓️ Escala</div>
         <div class="nav-item desativado">⚙️ Configurações</div>
     </nav>
 
@@ -254,7 +294,103 @@
             </div>
         </section>
 
+        <!-- ── View: Escala ── -->
+        <section id="view-escala" class="view">
+            <div class="view-header">
+                <h2>Escala de Médicos</h2>
+                <div class="view-acoes">
+                    <button class="btn btn-secundario" id="btn-mes-ant">← Anterior</button>
+                    <span id="periodo-escala" style="font-weight:600; min-width:140px; text-align:center"></span>
+                    <button class="btn btn-secundario" id="btn-mes-prox">Próximo →</button>
+                    <button class="btn btn-primario" id="btn-gerenciar-medicos">Gerenciar Médicos</button>
+                </div>
+            </div>
+            <div class="escala-wrap">
+                <table class="escala-grid" id="escala-grid">
+                    <tbody><tr><td class="vazio" colspan="32">Carregando...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
     </main>
+</div>
+
+<!-- Popup de seleção de turno -->
+<div id="popup-turno">
+    <div class="popup-opcao" onclick="confirmarTurno('manha')">
+        <div class="badge-turno" style="background:#dbeafe;color:#1d4ed8">M</div> Manhã
+    </div>
+    <div class="popup-opcao" onclick="confirmarTurno('tarde')">
+        <div class="badge-turno" style="background:#fef3c7;color:#92400e">T</div> Tarde
+    </div>
+    <div class="popup-opcao" onclick="confirmarTurno('dia_todo')">
+        <div class="badge-turno" style="background:#dcfce7;color:#166534">D</div> Dia todo
+    </div>
+    <div class="popup-separador" id="popup-separador" style="display:none"></div>
+    <div class="popup-opcao" id="popup-remover" style="display:none; color:#d93025" onclick="confirmarTurno('')">
+        ✕ Remover
+    </div>
+</div>
+
+<!-- ── Modal: Médicos ── -->
+<div class="modal-overlay" id="modal-medicos">
+    <div class="modal-box" style="max-width:620px">
+        <div class="modal-header">
+            <h3>Médicos</h3>
+            <button class="btn-fechar" onclick="fecharModalMedicos()">×</button>
+        </div>
+        <div class="modal-body">
+            <div style="display:flex; justify-content:flex-end; margin-bottom:1rem">
+                <button class="btn btn-primario" id="btn-novo-medico">+ Novo Médico</button>
+            </div>
+            <div id="lista-medicos" class="lista-medicos">
+                <p style="color:var(--texto-suave); text-align:center">Carregando médicos...</p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secundario" onclick="fecharModalMedicos()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Formulário Médico ── -->
+<div class="modal-overlay" id="modal-form-medico">
+    <div class="modal-box" style="max-width:480px">
+        <div class="modal-header">
+            <h3 id="form-med-titulo">Novo Médico</h3>
+            <button class="btn-fechar" onclick="fecharFormMedico()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-grupo full">
+                    <label>Nome completo <span class="obrigatorio">*</span></label>
+                    <input type="text" id="med-nome" placeholder="Dr. Carlos Silva">
+                    <span class="erro-campo" id="erro-med-nome"></span>
+                </div>
+                <div class="form-grupo">
+                    <label>Especialidade</label>
+                    <input type="text" id="med-especialidade" placeholder="Clínica Geral">
+                </div>
+                <div class="form-grupo">
+                    <label>CRM</label>
+                    <input type="text" id="med-crm" placeholder="12345-SP">
+                </div>
+                <div class="form-grupo">
+                    <label>Email (para notificações)</label>
+                    <input type="email" id="med-email" placeholder="medico@email.com">
+                </div>
+                <div class="form-grupo">
+                    <label>Cor na agenda</label>
+                    <input type="color" id="med-cor" value="#1a73e8" style="height:38px; padding:2px 4px">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-perigo" id="btn-desativar-med" style="display:none; margin-right:auto">Desativar</button>
+            <button class="btn btn-secundario" onclick="fecharFormMedico()">Cancelar</button>
+            <button class="btn btn-primario" id="btn-salvar-medico">Salvar</button>
+        </div>
+    </div>
 </div>
 
 <!-- ── Modal: Paciente ── -->
@@ -396,6 +532,8 @@
 <script src="js/utils/date.js"></script>
 <script src="js/modules/pacientes.js"></script>
 <script src="js/modules/agenda.js"></script>
+<script src="js/modules/medicos.js"></script>
+<script src="js/modules/escala.js"></script>
 <script>
 
 // ══════════════════════════════════════════════════════
@@ -465,6 +603,7 @@ async function navegarPara(view) {
     document.querySelector(`.nav-item[data-view="${view}"]`).classList.add('ativo');
 
     if (view === 'agenda') await inicializarAgenda();
+    if (view === 'escala') await inicializarEscala();
 }
 
 // ══════════════════════════════════════════════════════
@@ -837,6 +976,225 @@ document.getElementById('btn-ag-faltou').addEventListener('click', () => mudarSt
 document.getElementById('btn-ag-cancelar').addEventListener('click', () =>
     mudarStatus('cancelado', 'Cancelar esta consulta? O evento será removido do Google Calendar.')
 );
+
+// ══════════════════════════════════════════════════════
+// Módulo: Escala
+// ══════════════════════════════════════════════════════
+const PORTAL_BASE = 'https://paulocsr.github.io/clinica-app/medico.html';
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DIAS_SEMANA_CURTO = ['D','S','T','Q','Q','S','S'];
+
+let escalaAno  = new Date().getFullYear();
+let escalaMes  = new Date().getMonth() + 1;
+let _popupCtx  = null; // { medicoId, data, turnoAtual }
+
+async function inicializarEscala() {
+    await Medicos.listar(Estado.token, Estado.sheets.configuracoes);
+    await renderizarEscala();
+}
+
+async function renderizarEscala() {
+    document.getElementById('periodo-escala').textContent =
+        `${MESES_PT[escalaMes - 1]} ${escalaAno}`;
+
+    const medicos = Medicos._cache || [];
+    const escalaDoMes = await Escala.listarMes(Estado.token, Estado.sheets.configuracoes, escalaAno, escalaMes);
+    document.getElementById('escala-grid').innerHTML = montarGridEscala(medicos, escalaDoMes);
+}
+
+function montarGridEscala(medicos, escalaDoMes) {
+    const diasNoMes = new Date(escalaAno, escalaMes, 0).getDate();
+    const hoje = new Date();
+    const eHojeMesAtual = hoje.getFullYear() === escalaAno && hoje.getMonth() + 1 === escalaMes;
+
+    let html = '<thead><tr>';
+    html += '<th class="escala-medico-col">Médico</th>';
+    for (let d = 1; d <= diasNoMes; d++) {
+        const ds = new Date(escalaAno, escalaMes - 1, d).getDay();
+        const fds = ds === 0 || ds === 6;
+        const ehHoje = eHojeMesAtual && d === hoje.getDate();
+        html += `<th class="${fds ? 'fim-semana' : ''} ${ehHoje ? 'hoje-col' : ''}">${d}<br>${DIAS_SEMANA_CURTO[ds]}</th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    if (medicos.length === 0) {
+        html += `<tr><td colspan="${diasNoMes + 1}" class="vazio">Nenhum médico cadastrado. Clique em "Gerenciar Médicos" para adicionar.</td></tr>`;
+    } else {
+        medicos.forEach(med => {
+            html += `<tr><td class="escala-medico-nome" style="border-left:3px solid ${med.cor_agenda}">${med.nome}</td>`;
+            for (let d = 1; d <= diasNoMes; d++) {
+                const dataStr = `${escalaAno}-${String(escalaMes).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const entrada = escalaDoMes.find(e => e.medico_id === med.id && e.data === dataStr);
+                const turno = entrada ? entrada.turno : '';
+                const ti = turno ? Escala.TURNOS[turno] : null;
+                const ds = new Date(escalaAno, escalaMes - 1, d).getDay();
+                const fds = ds === 0 || ds === 6;
+                html += `<td class="escala-celula ${fds ? 'fim-semana' : ''}"
+                    style="${ti ? `background:${ti.bg}` : ''}"
+                    title="${ti ? ti.titulo : 'Clique para adicionar turno'}"
+                    onclick="abrirPopupTurno(event,'${med.id}','${dataStr}','${turno}')">
+                    ${ti ? `<span class="turno-label" style="color:${ti.cor}">${ti.label}</span>` : ''}
+                </td>`;
+            }
+            html += '</tr>';
+        });
+    }
+    html += '</tbody>';
+    return html;
+}
+
+function abrirPopupTurno(event, medicoId, data, turnoAtual) {
+    event.stopPropagation();
+    _popupCtx = { medicoId, data, turnoAtual };
+    const popup = document.getElementById('popup-turno');
+    const temTurno = !!turnoAtual;
+    document.getElementById('popup-separador').style.display = temTurno ? 'block' : 'none';
+    document.getElementById('popup-remover').style.display   = temTurno ? 'flex' : 'none';
+    popup.style.display = 'block';
+    const rect = event.target.getBoundingClientRect();
+    popup.style.left = Math.min(rect.left, window.innerWidth - 160) + 'px';
+    popup.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+}
+
+async function confirmarTurno(novoTurno) {
+    document.getElementById('popup-turno').style.display = 'none';
+    if (!_popupCtx) return;
+    const { medicoId, data, turnoAtual } = _popupCtx;
+    if (novoTurno === turnoAtual) return;
+    try {
+        await Escala.alterarTurno(Estado.token, Estado.sheets.configuracoes, medicoId, data, novoTurno);
+        await renderizarEscala();
+    } catch (e) { console.error(e); mostrarToast('Erro ao salvar turno.'); }
+}
+
+document.addEventListener('click', () => {
+    document.getElementById('popup-turno').style.display = 'none';
+});
+
+document.getElementById('btn-mes-ant').addEventListener('click', async () => {
+    escalaMes--;
+    if (escalaMes < 1) { escalaMes = 12; escalaAno--; }
+    Escala.invalidarCache();
+    await renderizarEscala();
+});
+document.getElementById('btn-mes-prox').addEventListener('click', async () => {
+    escalaMes++;
+    if (escalaMes > 12) { escalaMes = 1; escalaAno++; }
+    Escala.invalidarCache();
+    await renderizarEscala();
+});
+
+// ── Gestão de Médicos ──────────────────────────────────
+let medicoEditando = null;
+
+document.getElementById('btn-gerenciar-medicos').addEventListener('click', abrirModalMedicos);
+
+async function abrirModalMedicos() {
+    document.getElementById('modal-medicos').classList.add('aberto');
+    await renderizarListaMedicos();
+}
+function fecharModalMedicos() { document.getElementById('modal-medicos').classList.remove('aberto'); }
+
+async function renderizarListaMedicos() {
+    const lista = document.getElementById('lista-medicos');
+    lista.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Carregando...</p>';
+    const todos = await Medicos.listarTodos(Estado.token, Estado.sheets.configuracoes);
+    if (todos.length === 0) {
+        lista.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Nenhum médico cadastrado.</p>';
+        return;
+    }
+    lista.innerHTML = todos.map(m => `
+        <div class="medico-card">
+            <div class="medico-cor" style="background:${m.cor_agenda}"></div>
+            <div class="medico-info">
+                <strong>${m.nome} ${m.ativo === 'FALSE' ? '<small style="color:#999">(inativo)</small>' : ''}</strong>
+                <small>${[m.especialidade, m.crm].filter(Boolean).join(' · ') || 'Sem especialidade'}</small>
+                ${m.token ? `<div class="medico-link" title="Link do portal do médico">
+                    🔗 <a href="${PORTAL_BASE}?token=${m.token}" target="_blank">Portal pessoal</a>
+                    <button class="btn-acao" onclick="copiarLink('${m.token}')" title="Copiar link">📋</button>
+                </div>` : ''}
+            </div>
+            <button class="btn btn-secundario" onclick="abrirFormMedico('${m.id}')">Editar</button>
+        </div>
+    `).join('');
+}
+
+function copiarLink(token) {
+    navigator.clipboard.writeText(`${PORTAL_BASE}?token=${token}`);
+    mostrarToast('Link copiado!');
+}
+
+document.getElementById('btn-novo-medico').addEventListener('click', () => abrirFormMedico(null));
+
+async function abrirFormMedico(medicoId) {
+    medicoEditando = null;
+    document.getElementById('form-med-titulo').textContent = medicoId ? 'Editar Médico' : 'Novo Médico';
+    document.getElementById('btn-desativar-med').style.display = 'none';
+    document.getElementById('erro-med-nome').textContent = '';
+    document.getElementById('med-nome').value = '';
+    document.getElementById('med-especialidade').value = '';
+    document.getElementById('med-crm').value = '';
+    document.getElementById('med-email').value = '';
+    document.getElementById('med-cor').value = '#1a73e8';
+
+    if (medicoId) {
+        const todos = await Medicos.listarTodos(Estado.token, Estado.sheets.configuracoes);
+        medicoEditando = todos.find(m => m.id === medicoId);
+        if (medicoEditando) {
+            document.getElementById('med-nome').value = medicoEditando.nome;
+            document.getElementById('med-especialidade').value = medicoEditando.especialidade;
+            document.getElementById('med-crm').value = medicoEditando.crm;
+            document.getElementById('med-email').value = medicoEditando.email;
+            document.getElementById('med-cor').value = medicoEditando.cor_agenda || '#1a73e8';
+            document.getElementById('btn-desativar-med').style.display = medicoEditando.ativo === 'TRUE' ? 'inline-block' : 'none';
+        }
+    }
+    document.getElementById('modal-form-medico').classList.add('aberto');
+}
+function fecharFormMedico() { document.getElementById('modal-form-medico').classList.remove('aberto'); }
+
+document.getElementById('btn-salvar-medico').addEventListener('click', async () => {
+    const nome = document.getElementById('med-nome').value.trim();
+    document.getElementById('erro-med-nome').textContent = '';
+    if (!nome) { document.getElementById('erro-med-nome').textContent = 'Obrigatório.'; return; }
+
+    const dados = {
+        nome,
+        especialidade: document.getElementById('med-especialidade').value.trim(),
+        crm: document.getElementById('med-crm').value.trim(),
+        email: document.getElementById('med-email').value.trim(),
+        cor_agenda: document.getElementById('med-cor').value
+    };
+
+    const btn = document.getElementById('btn-salvar-medico');
+    btn.innerHTML = '<span class="spinner"></span> Salvando...'; btn.disabled = true;
+    try {
+        if (medicoEditando) {
+            await Medicos.editar(Estado.token, Estado.sheets.configuracoes, { ...medicoEditando, ...dados });
+            mostrarToast('Médico atualizado!');
+        } else {
+            await Medicos.cadastrar(Estado.token, Estado.sheets.configuracoes, dados);
+            mostrarToast('Médico cadastrado!');
+        }
+        fecharFormMedico();
+        await renderizarListaMedicos();
+        Medicos.invalidarCache();
+        await renderizarEscala();
+    } catch (e) { console.error(e); mostrarToast('Erro ao salvar.'); }
+    finally { btn.textContent = 'Salvar'; btn.disabled = false; }
+});
+
+document.getElementById('btn-desativar-med').addEventListener('click', async () => {
+    if (!confirm(`Desativar "${medicoEditando.nome}"?`)) return;
+    try {
+        await Medicos.desativar(Estado.token, Estado.sheets.configuracoes, medicoEditando);
+        mostrarToast('Médico desativado.');
+        fecharFormMedico();
+        await renderizarListaMedicos();
+        Medicos.invalidarCache();
+        await renderizarEscala();
+    } catch (e) { mostrarToast('Erro ao desativar.'); }
+});
 
 // ══════════════════════════════════════════════════════
 // Utilitários
