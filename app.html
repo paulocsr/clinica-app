@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clínica App</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; background: #f0f4f8; }
+
+        header {
+            background: #1a73e8;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 1.3rem; }
+        .usuario-info { font-size: 0.9rem; display: flex; align-items: center; gap: 1rem; }
+        .btn-sair {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.5);
+            color: white;
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-sair:hover { background: rgba(255,255,255,0.3); }
+
+        main {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .boas-vindas {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+        .boas-vindas h2 { color: #333; margin-bottom: 0.5rem; }
+        .boas-vindas p { color: #666; font-size: 0.95rem; margin-bottom: 1.5rem; }
+        .modulos {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .modulo {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            color: #aaa;
+            font-size: 0.9rem;
+            border: 2px dashed #e0e0e0;
+        }
+        .modulo-icone { font-size: 2rem; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Clínica App</h1>
+    <div class="usuario-info">
+        <span id="nome-usuario">Carregando...</span>
+        <button class="btn-sair" id="btn-sair">Sair</button>
+    </div>
+</header>
+
+<main>
+    <div class="boas-vindas">
+        <h2>Sistema configurado com sucesso!</h2>
+        <p>Sua pasta <strong>ClinicaApp</strong> foi criada no Google Drive com todas as planilhas prontas.<br>
+        Os módulos abaixo serão ativados nas próximas fases do desenvolvimento.</p>
+    </div>
+
+    <div class="modulos">
+        <div class="modulo">
+            <div class="modulo-icone">👥</div>
+            Pacientes<br><small>(em breve)</small>
+        </div>
+        <div class="modulo">
+            <div class="modulo-icone">📅</div>
+            Agenda<br><small>(em breve)</small>
+        </div>
+        <div class="modulo">
+            <div class="modulo-icone">📝</div>
+            Anotações<br><small>(em breve)</small>
+        </div>
+        <div class="modulo">
+            <div class="modulo-icone">💰</div>
+            Financeiro<br><small>(em breve)</small>
+        </div>
+        <div class="modulo">
+            <div class="modulo-icone">🗓️</div>
+            Escala<br><small>(em breve)</small>
+        </div>
+        <div class="modulo">
+            <div class="modulo-icone">⚙️</div>
+            Configurações<br><small>(em breve)</small>
+        </div>
+    </div>
+</main>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="js/auth.js"></script>
+<script>
+    // Verificar se está autenticado
+    const token = AUTH.getToken();
+    if (!token) {
+        window.location.href = 'index.html';
+    }
+
+    // Exibir nome do usuário
+    const usuario = AUTH.getUsuario();
+    if (usuario) {
+        document.getElementById('nome-usuario').textContent = usuario.name;
+    }
+
+    document.getElementById('btn-sair').addEventListener('click', () => {
+        AUTH.logout();
+    });
+</script>
+</body>
+</html>

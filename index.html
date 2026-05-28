@@ -6,7 +6,6 @@
     <title>Clínica App</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-
         body {
             font-family: sans-serif;
             display: flex;
@@ -15,7 +14,6 @@
             min-height: 100vh;
             background: #f0f4f8;
         }
-
         .card {
             background: white;
             padding: 2.5rem;
@@ -25,10 +23,8 @@
             width: 100%;
             max-width: 380px;
         }
-
         h1 { color: #1a73e8; font-size: 1.8rem; margin-bottom: 0.5rem; }
         .subtitulo { color: #666; margin-bottom: 2rem; font-size: 0.95rem; }
-
         .btn {
             display: inline-block;
             padding: 0.75rem 1.75rem;
@@ -38,99 +34,93 @@
             cursor: pointer;
             width: 100%;
         }
-
         .btn-primario { background: #1a73e8; color: white; }
         .btn-primario:hover { background: #1558b0; }
 
-        .btn-secundario { background: #f1f3f4; color: #333; margin-top: 0.75rem; font-size: 0.875rem; }
-        .btn-secundario:hover { background: #e2e5e9; }
-
-        .boas-vindas { color: #333; margin-bottom: 1.5rem; line-height: 1.5; }
-        .email { font-size: 0.85rem; color: #888; }
-
-        #tela-app { display: none; }
+        /* Tela de progresso */
+        #tela-loading { display: none; }
+        #progresso-msg { color: #555; margin-bottom: 1rem; font-size: 0.9rem; }
+        .barra-fundo {
+            background: #e8eaed;
+            border-radius: 8px;
+            height: 10px;
+            overflow: hidden;
+        }
+        #progresso-barra {
+            background: #1a73e8;
+            height: 100%;
+            width: 0%;
+            transition: width 0.4s ease;
+            border-radius: 8px;
+        }
+        .erro { color: #d93025; font-size: 0.85rem; margin-top: 1rem; }
     </style>
 </head>
 <body>
-
 <div class="card">
 
     <div id="tela-login">
         <h1>Clínica App</h1>
         <p class="subtitulo">Sistema de gestão para sua clínica</p>
         <button class="btn btn-primario" id="btn-login">Entrar com Google</button>
+        <p class="erro" id="msg-erro"></p>
     </div>
 
-    <div id="tela-app">
+    <div id="tela-loading">
         <h1>Clínica App</h1>
-        <p class="boas-vindas" id="msg-boas-vindas"></p>
-        <button class="btn btn-secundario" id="btn-logout">Sair</button>
+        <p class="subtitulo">Preparando seu sistema...</p>
+        <p id="progresso-msg">Iniciando...</p>
+        <div class="barra-fundo">
+            <div id="progresso-barra"></div>
+        </div>
     </div>
 
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="js/auth.js"></script>
+<script src="js/api/driveService.js"></script>
+<script src="js/api/sheetsService.js"></script>
+<script src="js/setup.js"></script>
 <script>
-    const CLIENT_ID = '739223236653-k755g3ncb1t17ei52dlq0ifa2o159aa0.apps.googleusercontent.com';
-
-    const ESCOPOS = [
-        'https://www.googleapis.com/auth/userinfo.profile',
-        'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/spreadsheets',
-        'https://www.googleapis.com/auth/drive.file',
-        'https://www.googleapis.com/auth/calendar'
-    ].join(' ');
-
-    let tokenClient = null;
-    let accessToken = null;
+    // Se já tem token válido, vai direto para o setup (que redireciona para app.html)
+    window.addEventListener('load', async () => {
+        const token = AUTH.getToken();
+        if (token) {
+            mostrarLoading();
+            await Setup.executar(token);
+        }
+    });
 
     document.getElementById('btn-login').addEventListener('click', () => {
-        if (!tokenClient) {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: ESCOPOS,
-                callback: handleToken,
-            });
-        }
-        tokenClient.requestAccessToken();
-    });
+        AUTH.solicitarToken(async (resposta) => {
+            if (resposta.error) {
+                document.getElementById('msg-erro').textContent = 'Erro no login: ' + resposta.error;
+                return;
+            }
+            AUTH.salvarToken(resposta.access_token, resposta.expires_in);
 
-    document.getElementById('btn-logout').addEventListener('click', () => {
-        google.accounts.oauth2.revoke(accessToken, () => {
-            accessToken = null;
-            document.getElementById('tela-app').style.display = 'none';
-            document.getElementById('tela-login').style.display = 'block';
+            // Buscar e salvar dados do usuário
+            try {
+                const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: 'Bearer ' + resposta.access_token }
+                });
+                const usuario = await r.json();
+                AUTH.salvarUsuario(usuario);
+                console.log('Login OK:', usuario.name);
+            } catch (e) {
+                console.warn('Não foi possível buscar dados do usuário:', e);
+            }
+
+            mostrarLoading();
+            await Setup.executar(resposta.access_token);
         });
     });
 
-    function handleToken(resposta) {
-        if (resposta.error) {
-            alert('Erro no login: ' + resposta.error);
-            return;
-        }
-        accessToken = resposta.access_token;
-        buscarUsuario();
-    }
-
-    function buscarUsuario() {
-        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: 'Bearer ' + accessToken }
-        })
-        .then(r => r.json())
-        .then(usuario => {
-            console.log('Fase 0 OK — usuário logado:', usuario.name);
-            document.getElementById('msg-boas-vindas').innerHTML =
-                'Olá, <strong>' + usuario.name + '</strong>!<br>' +
-                '<span class="email">' + usuario.email + '</span>';
-            document.getElementById('tela-login').style.display = 'none';
-            document.getElementById('tela-app').style.display = 'block';
-        })
-        .catch(erro => {
-            console.error('Erro ao buscar usuário:', erro);
-            alert('Não foi possível carregar seus dados. Tente novamente.');
-        });
+    function mostrarLoading() {
+        document.getElementById('tela-login').style.display = 'none';
+        document.getElementById('tela-loading').style.display = 'block';
     }
 </script>
-
 </body>
 </html>
