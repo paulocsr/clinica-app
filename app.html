@@ -1038,7 +1038,7 @@ async function migrarSheets() {
         await SheetsService.adicionarAba(Estado.token, configId, 'Clinicas', ['id','nome','ativo']);
 
     if (!abas.includes('Salas'))
-        await SheetsService.adicionarAba(Estado.token, configId, 'Salas', ['id','clinica_id','nome','ativo']);
+        await SheetsService.adicionarAba(Estado.token, configId, 'Salas', ['id','clinica_id','nome','ativo','turnos']);
 
     // Atualiza cabeçalho da aba Escala para o novo schema (sala_id no lugar de medico_id na col 2)
     const escalaRows = await SheetsService.lerLinhas(Estado.token, configId, 'Escala');
@@ -1191,6 +1191,8 @@ async function abrirModalClinicas() {
 }
 function fecharModalClinicas() { document.getElementById('modal-clinicas').classList.remove('aberto'); }
 
+let salaEditandoTurnos = null;
+
 async function renderizarListaClinicas() {
     const div = document.getElementById('lista-clinicas-salas');
     div.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Carregando...</p>';
@@ -1211,13 +1213,24 @@ async function renderizarListaClinicas() {
             <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem">
                 ${salas.map(s => {
                     const ts = (s.turnos||'manha,tarde,noite').split(',');
+                    if (s.id === salaEditandoTurnos) {
+                        return `<span style="background:#fff3cd;border:1px solid #ffe08a;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.8rem;display:inline-flex;align-items:center;gap:0.4rem">
+                            ${s.nome}
+                            <label style="display:flex;align-items:center;gap:2px;cursor:pointer"><input type="checkbox" id="et-m-${s.id}" ${ts.includes('manha')?'checked':''}> M</label>
+                            <label style="display:flex;align-items:center;gap:2px;cursor:pointer"><input type="checkbox" id="et-t-${s.id}" ${ts.includes('tarde')?'checked':''}> T</label>
+                            <label style="display:flex;align-items:center;gap:2px;cursor:pointer"><input type="checkbox" id="et-n-${s.id}" ${ts.includes('noite')?'checked':''}> N</label>
+                            <button class="btn-acao" style="color:#1a7f37;padding:0;font-weight:700" onclick="salvarTurnosSala('${s.id}')" title="Salvar">✓</button>
+                            <button class="btn-acao" style="color:#666;padding:0" onclick="cancelarEdicaoTurnos()" title="Cancelar">×</button>
+                        </span>`;
+                    }
                     const badges = ['manha','tarde','noite'].filter(t => ts.includes(t)).map(t => {
                         const ti = Escala.TURNOS[t];
                         return `<span style="background:${ti.bg};color:${ti.cor};border-radius:3px;padding:0 3px;font-size:0.65rem;font-weight:700">${ti.label}</span>`;
                     }).join('');
                     return `<span style="background:#f0f4f8;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.8rem;display:inline-flex;align-items:center;gap:0.3rem">
                         ${s.nome} ${badges}
-                        <button class="btn-acao" style="color:#d93025;padding:0;font-size:0.75rem" onclick="desativarSala('${s.id}')">×</button>
+                        <button class="btn-acao" style="padding:0;font-size:0.75rem" onclick="editarTurnosSala('${s.id}')" title="Editar turnos">✎</button>
+                        <button class="btn-acao" style="color:#d93025;padding:0;font-size:0.75rem" onclick="desativarSala('${s.id}')" title="Remover">×</button>
                     </span>`;
                 }).join('')}
             </div>
@@ -1253,6 +1266,30 @@ async function adicionarSala(clinicaId) {
     const turnos = [tm && 'manha', tt && 'tarde', tn && 'noite'].filter(Boolean).join(',') || 'manha';
     await Clinicas.cadastrarSala(Estado.token, Estado.sheets.configuracoes, clinicaId, nome, turnos);
     input.value = '';
+    await renderizarListaClinicas();
+    await renderizarEscala();
+}
+
+function editarTurnosSala(salaId) {
+    salaEditandoTurnos = salaId;
+    renderizarListaClinicas();
+}
+
+function cancelarEdicaoTurnos() {
+    salaEditandoTurnos = null;
+    renderizarListaClinicas();
+}
+
+async function salvarTurnosSala(salaId) {
+    const s = (Clinicas._salasCache||[]).find(x => x.id === salaId);
+    if (!s) return;
+    const tm = document.getElementById(`et-m-${salaId}`)?.checked;
+    const tt = document.getElementById(`et-t-${salaId}`)?.checked;
+    const tn = document.getElementById(`et-n-${salaId}`)?.checked;
+    const turnos = [tm && 'manha', tt && 'tarde', tn && 'noite'].filter(Boolean).join(',');
+    if (!turnos) { alert('Selecione ao menos um turno.'); return; }
+    await Clinicas.atualizarTurnosSala(Estado.token, Estado.sheets.configuracoes, s, turnos);
+    salaEditandoTurnos = null;
     await renderizarListaClinicas();
     await renderizarEscala();
 }

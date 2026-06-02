@@ -49,6 +49,11 @@ const Clinicas = {
         this._clinicasCache = null;
     },
 
+    async atualizarTurnosSala(token, sheetId, sala, turnos) {
+        await SheetsService.atualizarLinha(token, sheetId, 'Salas', sala._sheetRow, this._salaToRow({...sala, turnos}));
+        this._salasCache = null;
+    },
+
     async desativarSala(token, sheetId, sala) {
         await SheetsService.atualizarLinha(token, sheetId, 'Salas', sala._sheetRow, this._salaToRow({...sala, ativo:'FALSE'}));
         this._salasCache = null;
