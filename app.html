@@ -82,6 +82,40 @@
         .sala-turno-col { font-size: 0.78rem; padding: 0.3rem 0.6rem; border: 1px solid #e8e8e8; white-space: nowrap; color: var(--texto-suave); position: sticky; left: 0; background: white; z-index: 1; }
         .sala-turno-col .turno-badge { display: inline-block; width: 16px; height: 16px; border-radius: 3px; font-size: 0.65rem; font-weight: 700; line-height: 16px; text-align: center; margin-right: 4px; }
 
+        /* ── Escala: visão por dia (mobile) ── */
+        .escala-dia { display: none; }
+        .escala-dia-nav {
+            display: flex; align-items: center; justify-content: space-between;
+            background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+            padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; position: sticky; top: 0; z-index: 2;
+        }
+        .escala-dia-nav button { background: var(--cinza-claro); border: none; border-radius: 8px; font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 0.3rem 0.85rem; color: var(--azul); }
+        .escala-dia-nav .dia-label { font-weight: 600; font-size: 0.95rem; text-align: center; text-transform: capitalize; }
+        .escala-dia-nav .dia-label small { display: block; font-size: 0.72rem; color: var(--texto-suave); font-weight: 400; }
+        .escala-dia-clinica { font-weight: 700; font-size: 0.8rem; color: var(--azul); letter-spacing: 0.05em; margin: 1rem 0 0.4rem; }
+        .escala-dia-card {
+            display: flex; align-items: center; gap: 0.6rem; background: white;
+            border: 1px solid var(--cinza-borda); border-left-width: 4px; border-radius: 8px;
+            padding: 0.7rem 0.85rem; margin-bottom: 0.5rem; cursor: pointer;
+        }
+        .escala-dia-card .et-badge { width: 22px; height: 22px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .escala-dia-card .et-info { flex: 1; min-width: 0; }
+        .escala-dia-card .et-sala { font-size: 0.78rem; color: var(--texto-suave); }
+        .escala-dia-card .et-medico { font-weight: 600; font-size: 0.95rem; }
+        .escala-dia-card .et-medico.vazio { color: #bbb; font-weight: 400; font-style: italic; }
+
+        /* Botão de alternância: só aparece no mobile (no desktop o padrão é a grade) */
+        #btn-toggle-escala-view { display: none; }
+
+        /* Override manual: força um dos dois layouts, vencendo o @media (especificidade por #id) */
+        #view-escala.escala-force-grade .escala-wrap { display: block; }
+        #view-escala.escala-force-grade .escala-dia { display: none; }
+        #view-escala.escala-force-dia .escala-wrap { display: none; }
+        #view-escala.escala-force-dia .escala-dia { display: block; }
+        #view-escala.escala-force-grade #periodo-escala,
+        #view-escala.escala-force-grade #btn-mes-ant,
+        #view-escala.escala-force-grade #btn-mes-prox { display: inline-block; }
+
         /* ── Mobile ── */
         #btn-hamburger { display: none; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: white; padding: 0.25rem 0.5rem; margin-right: 0.5rem; }
         #sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; }
@@ -97,6 +131,10 @@
             .sala-turno-col { min-width: 100px; max-width: 140px; }
             input[type="search"] { width: 100%; }
             .view-acoes .btn { flex: 1; }
+            .escala-wrap { display: none; }
+            .escala-dia { display: block; }
+            #periodo-escala, #btn-mes-ant, #btn-mes-prox { display: none; }
+            #btn-toggle-escala-view { display: inline-block; }
         }
 
         /* ── Lista médicos ── */
@@ -328,6 +366,7 @@
                     <button class="btn btn-secundario" id="btn-mes-ant">← Anterior</button>
                     <span id="periodo-escala" style="font-weight:600; min-width:140px; text-align:center"></span>
                     <button class="btn btn-secundario" id="btn-mes-prox">Próximo →</button>
+                    <button class="btn btn-secundario" id="btn-toggle-escala-view" onclick="alternarVisaoEscala()">🗓 Ver mês inteiro</button>
                     <button class="btn btn-secundario" id="btn-gerenciar-clinicas">Clínicas e Salas</button>
                     <button class="btn btn-primario" id="btn-gerenciar-medicos">Gerenciar Médicos</button>
                 </div>
@@ -337,6 +376,7 @@
                     <tbody><tr><td class="vazio" colspan="32">Carregando...</td></tr></tbody>
                 </table>
             </div>
+            <div class="escala-dia" id="escala-dia"></div>
         </section>
 
     </main>
@@ -1022,6 +1062,8 @@ const DIAS_SEMANA_CURTO = ['D','S','T','Q','Q','S','S'];
 
 let escalaAno = new Date().getFullYear();
 let escalaMes = new Date().getMonth() + 1;
+let escalaDiaSel = new Date().getDate(); // dia selecionado na visão mobile
+const DIAS_SEMANA_LONGO = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 let _popupCtx = null; // { salaId, data, turno }
 
 function nomeAbreviado(nome) {
@@ -1066,7 +1108,99 @@ async function renderizarEscala() {
     const clinicas = Clinicas._clinicasCache || [];
     const escalaDoMes = await Escala.listarMes(Estado.token, Estado.sheets.configuracoes, escalaAno, escalaMes);
     document.getElementById('escala-grid').innerHTML = montarGridEscala(clinicas, escalaDoMes);
+    document.getElementById('escala-dia').innerHTML = montarEscalaDia(clinicas, escalaDoMes);
+    atualizarToggleEscalaLabel();
 }
+
+// ── Escala: visão por dia (mobile) ──────────────────────
+function montarEscalaDia(clinicas, escalaDoMes) {
+    const diasNoMes = new Date(escalaAno, escalaMes, 0).getDate();
+    if (escalaDiaSel > diasNoMes) escalaDiaSel = diasNoMes;
+    const data = new Date(escalaAno, escalaMes-1, escalaDiaSel);
+    const dataStr = `${escalaAno}-${String(escalaMes).padStart(2,'0')}-${String(escalaDiaSel).padStart(2,'0')}`;
+    const ds = data.getDay();
+    const ORDEM_TURNOS = ['manha','tarde','noite'];
+
+    let html = `<div class="escala-dia-nav">
+        <button onclick="navegarDiaEscala(-1)" aria-label="Dia anterior">‹</button>
+        <div class="dia-label">${escalaDiaSel} de ${MESES_PT[escalaMes-1]}<small>${DIAS_SEMANA_LONGO[ds]}</small></div>
+        <button onclick="navegarDiaEscala(1)" aria-label="Próximo dia">›</button>
+    </div>`;
+
+    if (clinicas.length === 0) {
+        return html + '<p class="vazio" style="text-align:center;color:var(--texto-suave);padding:1.5rem">Nenhuma clínica cadastrada. Toque em "Clínicas e Salas".</p>';
+    }
+
+    let temConteudo = false;
+    clinicas.forEach(clinica => {
+        const salas = Clinicas.salasDeClinica(clinica.id);
+        const cards = [];
+        salas.forEach(sala => {
+            const turnosDaSala = (sala.turnos || 'manha,tarde,noite').split(',');
+            ORDEM_TURNOS.filter(t => turnosDaSala.includes(t)).forEach(turno => {
+                const ti = Escala.TURNOS[turno];
+                const entrada = escalaDoMes.find(e => e.sala_id === sala.id && e.data === dataStr && e.turno === turno);
+                const medico = entrada ? (Medicos._cache||[]).find(m => m.id === entrada.medico_id) : null;
+                const corBorda = medico ? medico.cor_agenda : 'var(--cinza-borda)';
+                cards.push(`<div class="escala-dia-card" style="border-left-color:${corBorda}"
+                    onclick="abrirPickerMedico(event,'${sala.id}','${dataStr}','${turno}','${entrada ? entrada.medico_id : ''}')">
+                    <span class="et-badge" style="background:${ti.bg};color:${ti.cor}">${ti.label}</span>
+                    <div class="et-info">
+                        <div class="et-sala">${sala.nome}</div>
+                        <div class="et-medico ${medico ? '' : 'vazio'}">${medico ? medico.nome : '+ atribuir médico'}</div>
+                    </div>
+                </div>`);
+            });
+        });
+        if (cards.length) {
+            temConteudo = true;
+            html += `<div class="escala-dia-clinica">${clinica.nome.toUpperCase()}</div>${cards.join('')}`;
+        }
+    });
+
+    if (!temConteudo) html += '<p class="vazio" style="text-align:center;color:var(--texto-suave);padding:1.5rem">Nenhuma sala cadastrada.</p>';
+    return html;
+}
+
+async function navegarDiaEscala(delta) {
+    const diasNoMes = new Date(escalaAno, escalaMes, 0).getDate();
+    escalaDiaSel += delta;
+    if (escalaDiaSel < 1) {
+        if (--escalaMes < 1) { escalaMes = 12; escalaAno--; }
+        escalaDiaSel = new Date(escalaAno, escalaMes, 0).getDate();
+        Escala.invalidarCache();
+    } else if (escalaDiaSel > diasNoMes) {
+        if (++escalaMes > 12) { escalaMes = 1; escalaAno++; }
+        escalaDiaSel = 1;
+        Escala.invalidarCache();
+    }
+    await renderizarEscala();
+}
+
+// Retorna 'dia' ou 'grade' — o que está efetivamente visível agora
+function visaoEscalaEfetiva() {
+    const sec = document.getElementById('view-escala');
+    if (sec.classList.contains('escala-force-dia')) return 'dia';
+    if (sec.classList.contains('escala-force-grade')) return 'grade';
+    return window.matchMedia('(max-width: 768px)').matches ? 'dia' : 'grade';
+}
+
+function alternarVisaoEscala() {
+    const sec = document.getElementById('view-escala');
+    const mostrandoGrade = visaoEscalaEfetiva() === 'grade';
+    sec.classList.remove('escala-force-dia', 'escala-force-grade');
+    sec.classList.add(mostrandoGrade ? 'escala-force-dia' : 'escala-force-grade');
+    atualizarToggleEscalaLabel();
+}
+
+function atualizarToggleEscalaLabel() {
+    const btn = document.getElementById('btn-toggle-escala-view');
+    if (!btn) return;
+    btn.textContent = visaoEscalaEfetiva() === 'grade' ? '🗓 Ver por dia' : '🗓 Ver mês inteiro';
+}
+
+// Em modo automático, o label acompanha o redimensionamento da janela
+window.addEventListener('resize', atualizarToggleEscalaLabel);
 
 function montarGridEscala(clinicas, escalaDoMes) {
     const diasNoMes = new Date(escalaAno, escalaMes, 0).getDate();
@@ -1154,8 +1288,13 @@ function abrirPickerMedico(event, salaId, data, turno, medicoAtualId) {
     const popup = document.getElementById('popup-medico');
     popup.style.display = 'block';
     const rect = event.currentTarget.getBoundingClientRect();
-    popup.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
-    popup.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+    // popup é position:fixed → coordenadas relativas à viewport (sem scrollY)
+    popup.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - popup.offsetWidth - 8)) + 'px';
+    let top = rect.bottom + 4;
+    if (top + popup.offsetHeight > window.innerHeight - 8) {
+        top = Math.max(8, rect.top - popup.offsetHeight - 4); // não cabe embaixo → abre pra cima
+    }
+    popup.style.top = top + 'px';
 }
 
 async function confirmarMedico(medicoId) {
