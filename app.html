@@ -137,10 +137,11 @@
             #btn-toggle-escala-view { display: inline-block; }
 
             /* Agenda no celular: 3 dias visíveis, grade colada à esquerda, rola p/ direita */
-            .agenda-grid { min-width: 0; }
-            .agenda-grid th.col-hora, .col-hora { width: 44px; min-width: 44px; }
-            .agenda-grid th:not(.col-hora) { min-width: calc((100vw - 1.5rem - 44px) / 3); }
-            .celula-vazia, .celula-consulta { min-width: calc((100vw - 1.5rem - 44px) / 3); }
+            .agenda-grid { width: auto; min-width: 0; }
+            .agenda-grid .col-hora { width: 40px; min-width: 40px; }
+            .agenda-grid th:not(.col-hora),
+            .agenda-grid td.celula-vazia,
+            .agenda-grid td.celula-consulta { min-width: 30vw; }
         }
 
         /* ── Lista médicos ── */
