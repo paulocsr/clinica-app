@@ -228,29 +228,6 @@
         .status-realizado .consulta-card { opacity: 0.55; }
         .status-faltou .consulta-card { opacity: 0.45; text-decoration: line-through; }
 
-        /* Agenda no celular: 3 dias visíveis, colada à esquerda, rola p/ direita.
-           Colocado APÓS as regras base para vencer a cascata. */
-        @media (max-width: 768px) {
-            /* impede o container flex de crescer e quebrar a rolagem horizontal */
-            .app-body, main.conteudo { min-width: 0; }
-            .agenda-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-            /* table-layout fixed + width explícita = 3 dias por tela, resto rola */
-            .agenda-grid {
-                table-layout: fixed;
-                min-width: 0;
-                width: calc(38px + 7 * 30vw);
-            }
-            .agenda-grid th.col-hora, .agenda-grid td.col-hora { width: 38px; }
-            .agenda-grid th:not(.col-hora),
-            .agenda-grid td.celula-vazia,
-            .agenda-grid td.celula-consulta {
-                width: 30vw;
-                min-width: 0;
-                white-space: normal;
-                word-break: break-word;
-            }
-        }
-
         /* ── Modal genérico ── */
         .modal-overlay {
             display: none; position: fixed; inset: 0;
