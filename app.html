@@ -8,7 +8,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
             --azul: #1a73e8; --azul-escuro: #1558b0;
-            --cinza-claro: #ffe8d1; --cinza-borda: #e0e0e0;
+            --cinza-claro: #f0f4f8; --cinza-borda: #e0e0e0;
             --texto: #333; --texto-suave: #666;
             --sidebar-w: 200px; --header-h: 56px;
         }
@@ -135,13 +135,6 @@
             .escala-dia { display: block; }
             #periodo-escala, #btn-mes-ant, #btn-mes-prox { display: none; }
             #btn-toggle-escala-view { display: inline-block; }
-
-            /* Agenda no celular: 3 dias visíveis, grade colada à esquerda, rola p/ direita */
-            .agenda-grid { width: auto; min-width: 0; }
-            .agenda-grid .col-hora { width: 40px; min-width: 40px; }
-            .agenda-grid th:not(.col-hora),
-            .agenda-grid td.celula-vazia,
-            .agenda-grid td.celula-consulta { min-width: 30vw; }
         }
 
         /* ── Lista médicos ── */
@@ -234,6 +227,29 @@
         .consulta-card strong { display: block; }
         .status-realizado .consulta-card { opacity: 0.55; }
         .status-faltou .consulta-card { opacity: 0.45; text-decoration: line-through; }
+
+        /* Agenda no celular: 3 dias visíveis, colada à esquerda, rola p/ direita.
+           Colocado APÓS as regras base para vencer a cascata. */
+        @media (max-width: 768px) {
+            /* impede o container flex de crescer e quebrar a rolagem horizontal */
+            .app-body, main.conteudo { min-width: 0; }
+            .agenda-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            /* table-layout fixed + width explícita = 3 dias por tela, resto rola */
+            .agenda-grid {
+                table-layout: fixed;
+                min-width: 0;
+                width: calc(38px + 7 * 30vw);
+            }
+            .agenda-grid th.col-hora, .agenda-grid td.col-hora { width: 38px; }
+            .agenda-grid th:not(.col-hora),
+            .agenda-grid td.celula-vazia,
+            .agenda-grid td.celula-consulta {
+                width: 30vw;
+                min-width: 0;
+                white-space: normal;
+                word-break: break-word;
+            }
+        }
 
         /* ── Modal genérico ── */
         .modal-overlay {
