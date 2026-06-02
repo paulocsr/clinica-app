@@ -135,6 +135,12 @@
             .escala-dia { display: block; }
             #periodo-escala, #btn-mes-ant, #btn-mes-prox { display: none; }
             #btn-toggle-escala-view { display: inline-block; }
+
+            /* Agenda no celular: 3 dias visíveis, grade colada à esquerda, rola p/ direita */
+            .agenda-grid { min-width: 0; }
+            .agenda-grid th.col-hora, .col-hora { width: 44px; min-width: 44px; }
+            .agenda-grid th:not(.col-hora) { min-width: calc((100vw - 1.5rem - 44px) / 3); }
+            .celula-vazia, .celula-consulta { min-width: calc((100vw - 1.5rem - 44px) / 3); }
         }
 
         /* ── Lista médicos ── */
