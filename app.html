@@ -1057,6 +1057,22 @@ document.getElementById('btn-ag-cancelar').addEventListener('click', () =>
 // Módulo: Escala
 // ══════════════════════════════════════════════════════
 const PORTAL_BASE = 'https://paulocsr.github.io/clinica-app/medico.html';
+
+// ID de implantação do Apps Script (API do portal do médico) — gravado na aba Geral
+// durante o setup, na linha: portal_script_id | <deploy id>
+let portalScriptId = null;
+async function lerPortalScriptId() {
+    if (portalScriptId !== null) return portalScriptId;
+    try {
+        const rows = await SheetsService.lerLinhas(Estado.token, Estado.sheets.configuracoes, 'Geral');
+        const row = rows.find(r => r[0] === 'portal_script_id');
+        portalScriptId = row ? (row[1] || '') : '';
+    } catch (e) { portalScriptId = ''; }
+    return portalScriptId;
+}
+function linkPortal(tk) {
+    return `${PORTAL_BASE}?token=${tk}` + (portalScriptId ? `&s=${portalScriptId}` : '');
+}
 const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const DIAS_SEMANA_CURTO = ['D','S','T','Q','Q','S','S'];
 
@@ -1458,6 +1474,7 @@ document.getElementById('btn-gerenciar-medicos').addEventListener('click', abrir
 
 async function abrirModalMedicos() {
     document.getElementById('modal-medicos').classList.add('aberto');
+    await lerPortalScriptId();
     await renderizarListaMedicos();
 }
 function fecharModalMedicos() { document.getElementById('modal-medicos').classList.remove('aberto'); }
@@ -1467,13 +1484,17 @@ async function renderizarListaMedicos() {
     lista.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Carregando...</p>';
     const todos = await Medicos.listarTodos(Estado.token, Estado.sheets.configuracoes);
     if (todos.length === 0) { lista.innerHTML = '<p style="color:var(--texto-suave);text-align:center">Nenhum médico cadastrado.</p>'; return; }
-    lista.innerHTML = todos.map(m => `
+    const avisoPortal = portalScriptId ? '' :
+        `<p style="font-size:0.8rem;color:#b06000;background:#fef7e0;border-radius:6px;padding:0.5rem 0.75rem;margin-bottom:0.75rem">
+            ⚠️ Portal do médico ainda não publicado — os links abaixo só funcionarão após o setup do script
+            (ver docs/setup-portal-medico.md).</p>`;
+    lista.innerHTML = avisoPortal + todos.map(m => `
         <div class="medico-card">
             <div class="medico-cor" style="background:${m.cor_agenda}"></div>
             <div class="medico-info">
                 <strong>${m.nome} ${m.ativo==='FALSE'?'<small style="color:#999">(inativo)</small>':''}</strong>
                 <small>${[m.especialidade,m.crm].filter(Boolean).join(' · ')||'Sem especialidade'}</small>
-                ${m.token?`<div class="medico-link">🔗 <a href="${PORTAL_BASE}?token=${m.token}" target="_blank">Portal pessoal</a>
+                ${m.token?`<div class="medico-link">🔗 <a href="${linkPortal(m.token)}" target="_blank">Portal pessoal</a>
                     <button class="btn-acao" onclick="copiarLink('${m.token}')" title="Copiar">📋</button></div>`:''}
             </div>
             <button class="btn btn-secundario" onclick="abrirFormMedico('${m.id}')">Editar</button>
@@ -1481,7 +1502,7 @@ async function renderizarListaMedicos() {
 }
 
 function copiarLink(tk) {
-    navigator.clipboard.writeText(`${PORTAL_BASE}?token=${tk}`);
+    navigator.clipboard.writeText(linkPortal(tk));
     mostrarToast('Link copiado!');
 }
 

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal do Médico — Clínica App</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --azul: #1a73e8; --azul-escuro: #1558b0;
+            --cinza-claro: #f0f4f8; --cinza-borda: #e0e0e0;
+            --texto: #333; --texto-suave: #666;
+            --header-h: 56px;
+        }
+        body { font-family: sans-serif; background: var(--cinza-claro); color: var(--texto); }
+
+        header {
+            position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+            background: var(--azul); color: white;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 1rem; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        header h1 { font-size: 1.05rem; }
+        #hdr-nome { font-size: 0.85rem; opacity: 0.9; max-width: 45%; text-align: right; }
+
+        main { max-width: 600px; margin: 0 auto; padding: calc(var(--header-h) + 1rem) 0.75rem 3rem; }
+
+        .tela-msg { background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+            padding: 2rem 1.25rem; text-align: center; color: var(--texto-suave); margin-top: 1rem; }
+        .tela-msg h2 { color: var(--texto); font-size: 1.1rem; margin-bottom: 0.5rem; }
+
+        section { margin-bottom: 1.5rem; }
+        .sec-titulo { font-size: 0.8rem; font-weight: 700; color: var(--azul);
+            letter-spacing: 0.05em; text-transform: uppercase; margin: 0 0 0.5rem 0.25rem;
+            display: flex; align-items: center; gap: 0.4rem; }
+        .badge-qtd { background: #d93025; color: white; border-radius: 10px;
+            font-size: 0.7rem; padding: 0.1rem 0.5rem; }
+
+        /* navegação de mês */
+        .mes-nav { display: flex; align-items: center; justify-content: space-between;
+            background: white; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+            padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+        .mes-nav button { background: var(--cinza-claro); border: none; border-radius: 8px;
+            font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 0.3rem 0.85rem; color: var(--azul); }
+        .mes-nav .mes-label { font-weight: 600; font-size: 0.95rem; }
+
+        /* cards de turno */
+        .turno-card { display: flex; align-items: center; gap: 0.6rem; background: white;
+            border: 1px solid var(--cinza-borda); border-left-width: 4px; border-radius: 8px;
+            padding: 0.65rem 0.8rem; margin-bottom: 0.5rem; }
+        .turno-card .tc-badge { width: 24px; height: 24px; border-radius: 4px; font-size: 0.72rem;
+            font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .turno-card .tc-info { flex: 1; min-width: 0; }
+        .turno-card .tc-data { font-weight: 600; font-size: 0.92rem; text-transform: capitalize; }
+        .turno-card .tc-sala { font-size: 0.78rem; color: var(--texto-suave); }
+        .turno-card .tc-medico { font-size: 0.8rem; color: var(--texto-suave); }
+        .turno-card.clicavel { cursor: pointer; transition: filter 0.1s; }
+        .turno-card.clicavel:hover { filter: brightness(0.96); }
+
+        .btn { border: none; border-radius: 6px; padding: 0.45rem 0.9rem; font-size: 0.82rem;
+            cursor: pointer; font-weight: 600; }
+        .btn-azul { background: var(--azul); color: white; }
+        .btn-azul:hover { background: var(--azul-escuro); }
+        .btn-claro { background: var(--cinza-claro); color: var(--texto); }
+        .btn-verde { background: #188038; color: white; }
+        .btn-vermelho { background: #d93025; color: white; }
+        .btn:disabled { opacity: 0.5; cursor: default; }
+
+        /* propostas */
+        .proposta-card { background: white; border: 1px solid var(--cinza-borda); border-radius: 8px;
+            padding: 0.75rem 0.85rem; margin-bottom: 0.5rem; font-size: 0.85rem; }
+        .proposta-card.pendente-recebida { border-left: 4px solid #f9ab00; background: #fffdf5; }
+        .proposta-card .pc-linha { margin-bottom: 0.3rem; }
+        .proposta-card .pc-acoes { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+        .chip { display: inline-block; border-radius: 10px; padding: 0.1rem 0.6rem;
+            font-size: 0.72rem; font-weight: 700; }
+        .chip.pendente { background: #fef7e0; color: #b06000; }
+        .chip.aceito { background: #e6f4ea; color: #188038; }
+        .chip.recusado { background: #fce8e6; color: #c5221f; }
+        .chip.expirada { background: #f1f3f4; color: #666; }
+
+        .vazio { color: var(--texto-suave); font-size: 0.85rem; text-align: center;
+            background: white; border-radius: 8px; padding: 1rem; border: 1px dashed var(--cinza-borda); }
+
+        /* modal */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+            z-index: 300; align-items: flex-end; justify-content: center; }
+        .modal.aberto { display: flex; }
+        .modal-caixa { background: white; border-radius: 14px 14px 0 0; width: 100%; max-width: 600px;
+            max-height: 85vh; display: flex; flex-direction: column; }
+        .modal-cab { display: flex; align-items: center; justify-content: space-between;
+            padding: 0.9rem 1rem; border-bottom: 1px solid var(--cinza-borda); }
+        .modal-cab strong { font-size: 0.95rem; }
+        .modal-fechar { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--texto-suave); }
+        .modal-corpo { padding: 0.9rem 1rem; overflow-y: auto; }
+        .modal-rodape { padding: 0.75rem 1rem; border-top: 1px solid var(--cinza-borda);
+            display: flex; gap: 0.5rem; justify-content: flex-end; }
+        .resumo-troca { background: var(--cinza-claro); border-radius: 8px; padding: 0.75rem;
+            font-size: 0.85rem; margin-bottom: 0.75rem; line-height: 1.5; }
+
+        @media (min-width: 600px) {
+            .modal { align-items: center; }
+            .modal-caixa { border-radius: 14px; }
+        }
+
+        /* toast */
+        #toast { position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
+            background: #323232; color: white; padding: 0.6rem 1.2rem; border-radius: 8px;
+            font-size: 0.85rem; opacity: 0; transition: opacity 0.25s; z-index: 400; pointer-events: none;
+            max-width: 90%; text-align: center; }
+        #toast.visivel { opacity: 1; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>🩺 Portal do Médico</h1>
+    <span id="hdr-nome"></span>
+</header>
+
+<main>
+    <div id="tela-loading" class="tela-msg">Carregando sua escala...</div>
+
+    <div id="tela-erro" class="tela-msg" style="display:none">
+        <h2>Link inválido</h2>
+        <p id="erro-msg">Este link de acesso não é válido. Peça um novo link à administração da clínica.</p>
+    </div>
+
+    <div id="tela-app" style="display:none">
+
+        <section id="sec-recebidas" style="display:none">
+            <div class="sec-titulo">⏳ Propostas recebidas <span class="badge-qtd" id="qtd-recebidas"></span></div>
+            <div id="lista-recebidas"></div>
+        </section>
+
+        <section>
+            <div class="sec-titulo">📅 Meus turnos</div>
+            <div class="mes-nav">
+                <button id="btn-mes-ant">‹</button>
+                <span class="mes-label" id="mes-label"></span>
+                <button id="btn-mes-prox">›</button>
+            </div>
+            <div id="lista-turnos"></div>
+        </section>
+
+        <section id="sec-enviadas" style="display:none">
+            <div class="sec-titulo">📤 Minhas propostas</div>
+            <div id="lista-enviadas"></div>
+        </section>
+
+    </div>
+</main>
+
+<!-- Modal: escolher turno de destino para troca -->
+<div class="modal" id="modal-troca">
+    <div class="modal-caixa">
+        <div class="modal-cab">
+            <strong id="troca-titulo">Propor troca</strong>
+            <button class="modal-fechar" onclick="fecharModalTroca()">✕</button>
+        </div>
+        <div class="modal-corpo">
+            <div class="resumo-troca" id="troca-resumo"></div>
+            <div id="troca-passo-escolha">
+                <p style="font-size:0.85rem;color:var(--texto-suave);margin-bottom:0.6rem">
+                    Escolha o turno de um colega que você quer assumir no lugar:
+                </p>
+                <div class="mes-nav">
+                    <button id="btn-troca-mes-ant">‹</button>
+                    <span class="mes-label" id="troca-mes-label"></span>
+                    <button id="btn-troca-mes-prox">›</button>
+                </div>
+                <div id="troca-lista-destinos"></div>
+            </div>
+        </div>
+        <div class="modal-rodape" id="troca-rodape" style="display:none">
+            <button class="btn btn-claro" onclick="voltarEscolha()">Voltar</button>
+            <button class="btn btn-azul" id="btn-confirmar-troca">Enviar proposta</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// Configuração via URL: ?token=TOKEN&s=DEPLOY_ID
+// ══════════════════════════════════════════════════════
+const params = new URLSearchParams(location.search);
+const TOKEN = params.get('token') || '';
+const SCRIPT_ID = params.get('s') || '';
+const API = SCRIPT_ID ? `https://script.google.com/macros/s/${SCRIPT_ID}/exec` : null;
+
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const TURNOS = {
+    manha: { label: 'M', titulo: 'Manhã', bg: '#dbeafe', cor: '#1d4ed8' },
+    tarde: { label: 'T', titulo: 'Tarde', bg: '#fef3c7', cor: '#92400e' },
+    noite: { label: 'N', titulo: 'Noite', bg: '#f3e8ff', cor: '#7e22ce' }
+};
+const STATUS_LABEL = { pendente: 'Pendente', aceito: 'Aceita ✓', recusado: 'Recusada', expirada: 'Expirada' };
+
+const P = {
+    ano: new Date().getFullYear(),
+    mes: new Date().getMonth() + 1,
+    dados: null,          // resposta da API para o mês corrente da tela principal
+    trocaOrigem: null,    // turno meu sendo cedido { sala_id, data, turno }
+    trocaDestino: null,   // turno do colega escolhido
+    trocaAno: null, trocaMes: null,
+    trocaDados: null      // dados do mês exibido dentro do modal
+};
+
+// ══════════════════════════════════════════════════════
+// API
+// ══════════════════════════════════════════════════════
+async function apiDados(ano, mes) {
+    const url = `${API}?acao=dados&token=${encodeURIComponent(TOKEN)}&ano=${ano}&mes=${mes}`;
+    const resp = await fetch(url);
+    return await resp.json();
+}
+
+// POST com corpo text/plain: evita preflight CORS (Apps Script não responde OPTIONS)
+async function apiPost(body) {
+    const resp = await fetch(API, { method: 'POST', body: JSON.stringify({ token: TOKEN, ...body }) });
+    return await resp.json();
+}
+
+// ══════════════════════════════════════════════════════
+// Inicialização
+// ══════════════════════════════════════════════════════
+async function iniciar() {
+    if (!TOKEN || !API) { mostrarErro(); return; }
+    try {
+        const d = await apiDados(P.ano, P.mes);
+        if (!d.ok) { mostrarErro(d.erro === 'token_invalido' ? null : 'Erro ao carregar: ' + d.erro); return; }
+        P.dados = d;
+        document.getElementById('hdr-nome').textContent = d.medico.nome;
+        document.getElementById('tela-loading').style.display = 'none';
+        document.getElementById('tela-app').style.display = 'block';
+        renderizarTudo();
+    } catch (e) {
+        mostrarErro('Não foi possível conectar. Verifique sua internet e recarregue a página.');
+    }
+}
+
+function mostrarErro(msg) {
+    document.getElementById('tela-loading').style.display = 'none';
+    document.getElementById('tela-app').style.display = 'none';
+    document.getElementById('tela-erro').style.display = 'block';
+    if (msg) {
+        document.getElementById('tela-erro').querySelector('h2').textContent = 'Algo deu errado';
+        document.getElementById('erro-msg').textContent = msg;
+    }
+}
+
+async function recarregar() {
+    const d = await apiDados(P.ano, P.mes);
+    if (d.ok) { P.dados = d; renderizarTudo(); }
+}
+
+function renderizarTudo() {
+    renderizarEscala();
+    renderizarPropostas();
+}
+
+// ══════════════════════════════════════════════════════
+// Helpers de exibição
+// ══════════════════════════════════════════════════════
+function nomeMedico(id) {
+    const m = (P.dados.medicos || []).find(x => x.id === id);
+    return m ? m.nome : 'Médico';
+}
+function corMedico(id) {
+    const m = (P.dados.medicos || []).find(x => x.id === id);
+    return m ? m.cor : '#1a73e8';
+}
+function infoSala(id, dados) {
+    const d = dados || P.dados;
+    const s = (d.salas || []).find(x => x.id === id);
+    if (!s) return { sala: '?', clinica: '' };
+    const c = (d.clinicas || []).find(x => x.id === s.clinica_id);
+    return { sala: s.nome, clinica: c ? c.nome : '' };
+}
+function dataExtensa(iso) {
+    const [a, m, d] = iso.split('-').map(Number);
+    return new Date(a, m - 1, d).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+}
+function descTurno(t, dados) {
+    const i = infoSala(t.sala_id, dados);
+    const tu = TURNOS[t.turno] || { titulo: t.turno };
+    return `${dataExtensa(t.data)} — ${tu.titulo} — ${i.clinica ? i.clinica + ' · ' : ''}${i.sala}`;
+}
+function badgeTurno(turno) {
+    const tu = TURNOS[turno] || { label: '?', bg: '#eee', cor: '#666' };
+    return `<div class="tc-badge" style="background:${tu.bg};color:${tu.cor}">${tu.label}</div>`;
+}
+
+// ══════════════════════════════════════════════════════
+// Minha escala do mês
+// ══════════════════════════════════════════════════════
+function renderizarEscala() {
+    document.getElementById('mes-label').textContent = `${MESES_PT[P.mes-1]} ${P.ano}`;
+    const meus = (P.dados.escala || [])
+        .filter(e => e.medico_id === P.dados.medico.id)
+        .sort((a, b) => (a.data + a.turno).localeCompare(b.data + b.turno));
+
+    const el = document.getElementById('lista-turnos');
+    if (!meus.length) {
+        el.innerHTML = '<div class="vazio">Nenhum turno seu neste mês.</div>';
+        return;
+    }
+    el.innerHTML = meus.map(e => {
+        const i = infoSala(e.sala_id);
+        return `
+        <div class="turno-card" style="border-left-color:${P.dados.medico.cor}">
+            ${badgeTurno(e.turno)}
+            <div class="tc-info">
+                <div class="tc-data">${dataExtensa(e.data)}</div>
+                <div class="tc-sala">${i.clinica ? i.clinica + ' · ' : ''}${i.sala} — ${(TURNOS[e.turno]||{}).titulo || e.turno}</div>
+            </div>
+            <button class="btn btn-claro" onclick='abrirModalTroca(${JSON.stringify(e)})'>Trocar</button>
+        </div>`;
+    }).join('');
+}
+
+document.getElementById('btn-mes-ant').addEventListener('click', () => mudarMes(-1));
+document.getElementById('btn-mes-prox').addEventListener('click', () => mudarMes(1));
+async function mudarMes(delta) {
+    P.mes += delta;
+    if (P.mes < 1) { P.mes = 12; P.ano--; }
+    if (P.mes > 12) { P.mes = 1; P.ano++; }
+    document.getElementById('mes-label').textContent = `${MESES_PT[P.mes-1]} ${P.ano}`;
+    document.getElementById('lista-turnos').innerHTML = '<div class="vazio">Carregando...</div>';
+    await recarregar();
+}
+
+// ══════════════════════════════════════════════════════
+// Propostas (recebidas e enviadas)
+// ══════════════════════════════════════════════════════
+function renderizarPropostas() {
+    const sols = P.dados.solicitacoes || [];
+    const minhas = sols.filter(s => s.medico_solicitante_id === P.dados.medico.id)
+        .sort((a, b) => String(b.data_criacao).localeCompare(String(a.data_criacao)));
+    const recebidas = sols.filter(s => s.medico_destino_id === P.dados.medico.id && s.status === 'pendente')
+        .sort((a, b) => String(b.data_criacao).localeCompare(String(a.data_criacao)));
+
+    const secR = document.getElementById('sec-recebidas');
+    secR.style.display = recebidas.length ? 'block' : 'none';
+    document.getElementById('qtd-recebidas').textContent = recebidas.length;
+    document.getElementById('lista-recebidas').innerHTML = recebidas.map(s => `
+        <div class="proposta-card pendente-recebida">
+            <div class="pc-linha"><strong>${nomeMedico(s.medico_solicitante_id)}</strong> propõe uma troca:</div>
+            <div class="pc-linha">🔵 Ele(a) assume o <strong>seu</strong> turno:<br>${descTurno({sala_id:s.sala_id_destino,data:s.data_destino,turno:s.turno_destino})}</div>
+            <div class="pc-linha">🟢 Você assume o turno <strong>dele(a)</strong>:<br>${descTurno({sala_id:s.sala_id_origem,data:s.data_origem,turno:s.turno_origem})}</div>
+            <div class="pc-acoes">
+                <button class="btn btn-verde" onclick="responder('${s.id}','aceito')">Aceitar</button>
+                <button class="btn btn-vermelho" onclick="responder('${s.id}','recusado')">Recusar</button>
+            </div>
+        </div>`).join('');
+
+    const secE = document.getElementById('sec-enviadas');
+    secE.style.display = minhas.length ? 'block' : 'none';
+    document.getElementById('lista-enviadas').innerHTML = minhas.map(s => `
+        <div class="proposta-card">
+            <div class="pc-linha">Para <strong>${nomeMedico(s.medico_destino_id)}</strong>
+                <span class="chip ${s.status}">${STATUS_LABEL[s.status] || s.status}</span></div>
+            <div class="pc-linha">Você cede: ${descTurno({sala_id:s.sala_id_origem,data:s.data_origem,turno:s.turno_origem})}</div>
+            <div class="pc-linha">Você recebe: ${descTurno({sala_id:s.sala_id_destino,data:s.data_destino,turno:s.turno_destino})}</div>
+        </div>`).join('');
+}
+
+async function responder(id, resposta) {
+    const verbo = resposta === 'aceito' ? 'ACEITAR' : 'RECUSAR';
+    if (!confirm(`Confirma ${verbo} esta proposta de troca?`)) return;
+    try {
+        const r = await apiPost({ acao: 'responder', id, resposta });
+        if (r.ok) {
+            mostrarToast(resposta === 'aceito' ? 'Troca confirmada! A escala foi atualizada.' : 'Proposta recusada.');
+        } else if (r.erro === 'escala_mudou') {
+            mostrarToast('A escala mudou desde a proposta — troca cancelada.');
+        } else {
+            mostrarToast('Não foi possível responder: ' + r.erro);
+        }
+        await recarregar();
+    } catch (e) { mostrarToast('Erro de conexão. Tente novamente.'); }
+}
+
+// ══════════════════════════════════════════════════════
+// Fluxo de proposta de troca
+// ══════════════════════════════════════════════════════
+function abrirModalTroca(turnoMeu) {
+    P.trocaOrigem = turnoMeu;
+    P.trocaDestino = null;
+    P.trocaAno = P.ano; P.trocaMes = P.mes;
+    P.trocaDados = P.dados;
+    document.getElementById('modal-troca').classList.add('aberto');
+    document.getElementById('troca-rodape').style.display = 'none';
+    document.getElementById('troca-passo-escolha').style.display = 'block';
+    atualizarResumoTroca();
+    renderizarDestinos();
+}
+function fecharModalTroca() { document.getElementById('modal-troca').classList.remove('aberto'); }
+
+function atualizarResumoTroca() {
+    let html = `Você quer ceder:<br><strong>${descTurno(P.trocaOrigem)}</strong>`;
+    if (P.trocaDestino) {
+        html += `<br><br>E assumir o turno de <strong>${nomeMedico(P.trocaDestino.medico_id)}</strong>:<br><strong>${descTurno(P.trocaDestino, P.trocaDados)}</strong>`;
+    }
+    document.getElementById('troca-resumo').innerHTML = html;
+}
+
+function renderizarDestinos() {
+    document.getElementById('troca-mes-label').textContent = `${MESES_PT[P.trocaMes-1]} ${P.trocaAno}`;
+    const outros = (P.trocaDados.escala || [])
+        .filter(e => e.medico_id && e.medico_id !== P.dados.medico.id)
+        .sort((a, b) => (a.data + a.turno).localeCompare(b.data + b.turno));
+
+    const el = document.getElementById('troca-lista-destinos');
+    if (!outros.length) {
+        el.innerHTML = '<div class="vazio">Nenhum turno de colega neste mês.</div>';
+        return;
+    }
+    el.innerHTML = outros.map((e, idx) => {
+        const i = infoSala(e.sala_id, P.trocaDados);
+        return `
+        <div class="turno-card clicavel" style="border-left-color:${corMedico(e.medico_id)}" onclick="escolherDestino(${idx})">
+            ${badgeTurno(e.turno)}
+            <div class="tc-info">
+                <div class="tc-data">${dataExtensa(e.data)}</div>
+                <div class="tc-sala">${i.clinica ? i.clinica + ' · ' : ''}${i.sala} — ${(TURNOS[e.turno]||{}).titulo || e.turno}</div>
+                <div class="tc-medico">👤 ${nomeMedico(e.medico_id)}</div>
+            </div>
+        </div>`;
+    }).join('');
+    el._outros = outros;
+}
+
+function escolherDestino(idx) {
+    P.trocaDestino = document.getElementById('troca-lista-destinos')._outros[idx];
+    document.getElementById('troca-passo-escolha').style.display = 'none';
+    document.getElementById('troca-rodape').style.display = 'flex';
+    atualizarResumoTroca();
+}
+
+function voltarEscolha() {
+    P.trocaDestino = null;
+    document.getElementById('troca-passo-escolha').style.display = 'block';
+    document.getElementById('troca-rodape').style.display = 'none';
+    atualizarResumoTroca();
+}
+
+document.getElementById('btn-troca-mes-ant').addEventListener('click', () => mudarMesTroca(-1));
+document.getElementById('btn-troca-mes-prox').addEventListener('click', () => mudarMesTroca(1));
+async function mudarMesTroca(delta) {
+    P.trocaMes += delta;
+    if (P.trocaMes < 1) { P.trocaMes = 12; P.trocaAno--; }
+    if (P.trocaMes > 12) { P.trocaMes = 1; P.trocaAno++; }
+    document.getElementById('troca-mes-label').textContent = `${MESES_PT[P.trocaMes-1]} ${P.trocaAno}`;
+    document.getElementById('troca-lista-destinos').innerHTML = '<div class="vazio">Carregando...</div>';
+    const d = await apiDados(P.trocaAno, P.trocaMes);
+    if (d.ok) { P.trocaDados = d; renderizarDestinos(); }
+}
+
+document.getElementById('btn-confirmar-troca').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-confirmar-troca');
+    btn.disabled = true;
+    try {
+        const r = await apiPost({
+            acao: 'propor',
+            origem: { sala_id: P.trocaOrigem.sala_id, data: P.trocaOrigem.data, turno: P.trocaOrigem.turno },
+            destino: { sala_id: P.trocaDestino.sala_id, data: P.trocaDestino.data, turno: P.trocaDestino.turno }
+        });
+        if (r.ok) {
+            fecharModalTroca();
+            mostrarToast(`Proposta enviada para ${nomeMedico(P.trocaDestino.medico_id)}.`);
+            await recarregar();
+        } else if (r.erro === 'proposta_duplicada') {
+            mostrarToast('Você já tem uma proposta pendente igual a esta.');
+        } else {
+            mostrarToast('Não foi possível enviar: ' + r.erro);
+        }
+    } catch (e) { mostrarToast('Erro de conexão. Tente novamente.'); }
+    btn.disabled = false;
+});
+
+// ══════════════════════════════════════════════════════
+// Toast
+// ══════════════════════════════════════════════════════
+let _toastTimer = null;
+function mostrarToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('visivel');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.remove('visivel'), 3500);
+}
+
+iniciar();
+</script>
+</body>
+</html>
