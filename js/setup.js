@@ -25,7 +25,7 @@ const Setup = {
             nome: 'configuracoes',
             abas: [
                 { nome: 'Geral',    cabecalhos: ['chave','valor'] },
-                { nome: 'Medicos',  cabecalhos: ['id','nome','especialidade','crm','cor_agenda','ativo'] },
+                { nome: 'Medicos',  cabecalhos: ['id','nome','especialidade','crm','cor_agenda','ativo','email','token'] },
                 { nome: 'Escala',   cabecalhos: ['id','medico_id','data','turno','observacao','data_registro'] }
             ]
         }

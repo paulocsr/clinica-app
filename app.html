@@ -1107,6 +1107,15 @@ async function migrarSheets() {
         await SheetsService.atualizarLinha(Estado.token, configId, 'Escala', 1,
             ['id','sala_id','medico_id','data','turno','observacao','data_registro']);
     }
+
+    // Cabeçalho da aba Medicos: instalações antigas não têm os títulos email/token,
+    // e a API do portal (Apps Script) localiza as colunas pelos títulos
+    const medicosRows = await SheetsService.lerLinhas(Estado.token, configId, 'Medicos');
+    const headerMed = medicosRows[0] || [];
+    if (headerMed[7] !== 'token') {
+        await SheetsService.atualizarLinha(Estado.token, configId, 'Medicos', 1,
+            ['id','nome','especialidade','crm','cor_agenda','ativo','email','token']);
+    }
 }
 
 async function inicializarEscala() {
