@@ -232,8 +232,19 @@ function json_(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+let _tz = null;
 function tz_() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  // Planilhas criadas via Sheets API podem vir sem fuso válido —
+  // getSpreadsheetTimeZone() retorna algo que o formatDate rejeita
+  if (_tz) return _tz;
+  try {
+    const t = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+    Utilities.formatDate(new Date(), t, 'yyyy'); // valida
+    _tz = t;
+  } catch (e) {
+    _tz = 'America/Sao_Paulo';
+  }
+  return _tz;
 }
 
 function ativo_(o) {
